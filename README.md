@@ -1,1 +1,1 @@
-# web-based-terrain-modeller
+# Web Based Terrain Modeller
