@@ -5,12 +5,23 @@
   "author": "Miguel Marques",
   "license": "MIT",
   "devDependencies": {
+    "browser-sync": "^2.12.3",
+    "del": "^2.2.0",
+    "fs-extra": "^0.26.7",
     "gulp": "^3.9.1",
-    "jspm": "^0.16.33"
+    "gulp-angular-templatecache": "^1.8.0",
+    "gulp-insert": "^0.5.0",
+    "gulp-minify-html": "^1.0.6",
+    "gulp-sass": "^2.2.0",
+    "gulp-sourcemaps": "^1.6.0",
+    "jspm": "^0.16.33",
+    "node-sass": "^3.4.2",
+    "require-dir": "^0.3.0",
+    "run-sequence": "^1.1.5"
   },
   "jspm": {
     "directories": {
-      "baseURL": "app"
+      "baseURL": "src/app"
     },
     "dependencies": {
       "angular": "github:angular/bower-angular@^1.5.3",
