@@ -1,0 +1,22 @@
+editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  
+  canvas {
+    background-color: yellow;
+  }
+  
+  .image-list {
+    img {
+      width: 64px;
+      height: 64px;
+      cursor: zoom-in;
+    } 
+    
+    md-list-item {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+  }
+}

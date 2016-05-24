@@ -1,28 +1,35 @@
-'use strict';
-
 var gulp = require('gulp');
 var browserSync = require('browser-sync');
 var gulpInsert = require('gulp-insert');
 var gulpSass = require('gulp-sass');
 var gulpSourcemaps = require('gulp-sourcemaps');
+var gulpInject = require('gulp-inject');
+var sassJspm = require('sass-jspm-importer');
+// var autoprefixer = require('gulp-autoprefixer');
+
 var config = require('../config');
-// var utils = require('../utils');
 
 gulp.task('compile-sass', function () {
   return gulp.src(config.sass.src)
-    
-    // expose environment/revision
-    // .pipe(gulpInsert.prepend('$environment: "' + utils.getEnvironment() + '";'))
-    // .pipe(gulpInsert.prepend('$revision: "' + utils.getRevision() + '";'))
-    
+    .pipe(gulpInject(gulp.src(config.sass.routes_src, {read: false, cwd: config.paths.app + '/app'}), {
+      starttag: '/* inject:imports */',
+      endtag: '/* endinject */',
+      transform: function (filepath) {
+        return '@import ".' + filepath + '";';
+      }
+    }))
     .pipe(gulpSourcemaps.init())
-    .pipe(gulpSass()
-    .on('error', function (e) {
+    .pipe(gulpSass({
+      functions: sassJspm.resolve_function('/src/app/vendor/jspm_packages/'),
+      importer: sassJspm.importer
+    })
+    .on('error', function (e) { 
       console.log("Failed to compile SASS: ", e.message);
       this.emit('end');
     }))
     .pipe(gulpSourcemaps.write('.' /* write as a separate file */))
+    // .pipe(autoprefixer())
     .pipe(gulp.dest(config.sass.dest))
-    .pipe(browserSync.reload({stream: true}))
+    .pipe(browserSync.reload({stream: true}));
     
 });

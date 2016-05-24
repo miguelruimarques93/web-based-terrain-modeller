@@ -1,0 +1,9 @@
+{
+	"exclude": [
+		"node_modules",
+		"src/app/vendor",
+		"tmp",
+		"temp",
+		"typings"
+	]
+}

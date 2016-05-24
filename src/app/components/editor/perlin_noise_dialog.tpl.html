@@ -1,0 +1,35 @@
+<md-dialog ng-cloak>
+  <form name="perlinNoiseParametersForm">
+    <md-dialog-content>
+      <md-content layout-padding>
+        
+        <md-input-container class="md-block">
+          <label>Frequency</label>
+          <input ng-model="perlin_noise.frequency" type="number" step="1" min="1" max="2000" required />
+        </md-input-container>
+        <md-input-container class="md-block">
+          <label>Octaves</label>
+          <input ng-model="perlin_noise.octaves" type="number" step="1" min="1" max="20" required />
+        </md-input-container>
+        <md-input-container class="md-block">
+          <label>Persistence</label>
+          <input ng-model="perlin_noise.persistence" type="number" step="0.01" min="0.01" max="10.0" required />
+        </md-input-container>
+        <md-input-container class="md-block">
+          <label>Lacunarity</label>
+          <input ng-model="perlin_noise.lacunarity" type="number" step="0.01" min="0.01" max="10.0" required />
+        </md-input-container>
+        <md-input-container class="md-block">
+          <label>Base</label>
+          <input ng-model="perlin_noise.base" type="number" step="0.01" min="0.0" max="20" required />
+        </md-input-container>
+        
+      </md-content>
+    </md-dialog-content>
+    <md-dialog-actions layout="row">
+      <span flex />
+      <md-button ng-click="confirm()" ng-disabled="perlinNoiseParametersForm.$invalid">Ok</md-button>
+      <md-button ng-click="cancel()">Cancel</md-button>
+    <md-dialog-actions>
+  </form>
+</md-dialog>

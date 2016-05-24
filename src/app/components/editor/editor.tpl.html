@@ -1,0 +1,61 @@
+<md-toolbar class="md-menu-toolbar">
+  <div layout="row">
+    <md-toolbar-filler layout="" layout-align="center center">
+    </md-toolbar-filler>
+
+    <div>
+      <h2 class="md-toolbar-tools">Editor</h2>
+      <md-menu-bar>
+        <md-menu>
+          <button ng-click="$mdOpenMenu()">
+            File
+          </button>
+          <md-menu-content>
+            <md-menu-item>
+              <md-button ng-model="img_file" ngf-select="vm.openFile($file)" ngf-pattern="'image/*'" ngf-accept="'image/*'">Open Image</md-button>
+            </md-menu-item>
+            <md-menu-item>
+              <md-menu>
+                <md-button ng-click="$mdOpenMenu()">Random Surface</md-button>
+                <md-menu-content>
+                  <md-menu-item><md-button ng-click="vm.closeAllMenus(); vm.random_perlin_surface($event)">Perlin Noise</md-button></md-menu-item>
+                  <md-menu-item><md-button ng-click="vm.closeAllMenus(); vm.random_simplex_surface($event)">Simplex Noise</md-button></md-menu-item>
+                  <md-menu-item><md-button ng-click="vm.closeAllMenus(); vm.random_fourier_surface($event)">Fourier Synthesis</md-button></md-menu-item>
+                </md-menu-content>
+              </md-menu>
+            </md-menu-item>
+            <md-menu-item>
+              <md-menu>
+                <md-button ng-click="$mdOpenMenu()">Add Detail</md-button>
+                <md-menu-content>
+                  <md-menu-item><md-button ng-click="vm.closeAllMenus(); vm.add_perlin_detail($event)">Perlin Noise</md-button></md-menu-item>
+                  <md-menu-item><md-button ng-click="vm.closeAllMenus(); vm.add_simplex_detail($event)">Simplex Noise</md-button></md-menu-item>
+                  <md-menu-item><md-button ng-click="vm.closeAllMenus(); vm.add_fourier_detail($event)">Fourier Synthesis</md-button></md-menu-item>
+                </md-menu-content>
+              </md-menu>
+            </md-menu-item>
+          </md-menu-content>
+        
+      </md-menu-bar>
+    </div>
+  </div>
+</md-toolbar>
+
+<div class="no-overflow" layout="row" flex>  
+  <div layout="column" flex><canvas flex /></div>
+  <md-content layout-padding ng-show="vm.images.length">
+    <md-list class="image-list md-3-line">
+      <md-list-item ng-repeat="image in vm.images track by $index">     
+        <img src="{{image}}" ng-click="vm.show_image($event, image)"/>
+        
+        <md-menu>
+          <md-icon ng-click="$mdOpenMenu()">more_vert</md-icon>
+          <md-menu-content>
+            <md-menu-item><md-button href="{{image}}" download="image{{$index+1}}.png" ng-click="$mdCloseMenu()">Save</md-button></md-menu-item>
+            <md-menu-item><md-button ng-click="$mdCloseMenu(); vm.remove_image($index)">Remove</md-button></a></md-menu-item>
+          </md-menu-content>
+        </md-menu>
+      </md-list-item>
+    </md-list>
+  </md-content>
+</div>

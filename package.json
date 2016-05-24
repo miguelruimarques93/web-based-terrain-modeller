@@ -5,27 +5,56 @@
   "author": "Miguel Marques",
   "license": "MIT",
   "devDependencies": {
+    "babel-plugin-transform-class-properties": "^6.9.0",
     "browser-sync": "^2.12.3",
+    "connect-modrewrite": "^0.9.0",
     "del": "^2.2.0",
     "fs-extra": "^0.26.7",
     "gulp": "^3.9.1",
     "gulp-angular-templatecache": "^1.8.0",
+    "gulp-autoprefixer": "^3.1.0",
+    "gulp-inject": "^4.0.0",
     "gulp-insert": "^0.5.0",
     "gulp-minify-html": "^1.0.6",
+    "gulp-ng-html2js": "^0.2.2",
+    "gulp-rename": "^1.2.2",
     "gulp-sass": "^2.2.0",
     "gulp-sourcemaps": "^1.6.0",
+    "gulp-template": "^4.0.0",
     "jspm": "^0.16.33",
     "node-sass": "^3.4.2",
     "require-dir": "^0.3.0",
-    "run-sequence": "^1.1.5"
+    "run-sequence": "^1.1.5",
+    "sass-jspm-importer": "github:idcware/node-sass-jspm-importer",
+    "yargs": "^4.6.0"
   },
   "jspm": {
     "directories": {
-      "baseURL": "src/app"
+      "baseURL": "src",
+      "lib": "src/app",
+      "packages": "src/app/vendor/jspm_packages"
     },
+    "configFile": "src/system.config.js",
     "dependencies": {
       "angular": "github:angular/bower-angular@^1.5.3",
-      "angular-ui-router": "github:angular-ui/ui-router@^0.2.18"
+      "angular-animate": "npm:angular-animate@^1.5.5",
+      "angular-aria": "npm:angular-aria@^1.5.5",
+      "angular-filereader": "github:matteosuppo/angular-filereader@^1.0.4",
+      "angular-leaflet-directive": "npm:angular-leaflet-directive@^0.10.0",
+      "angular-material": "npm:angular-material@^1.0.8",
+      "angular-messages": "github:angular/bower-angular-messages@^1.5.5",
+      "angular-mocks": "github:angular/bower-angular-mocks@^1.5.3",
+      "angular-ui-router": "github:angular-ui/ui-router@^0.2.18",
+      "jquery": "npm:jquery@^2.2.3",
+      "jsfeat": "github:inspirit/jsfeat@^0.0.8",
+      "leaflet": "github:Leaflet/Leaflet@^0.7.7",
+      "material-design-icons-iconfont": "npm:material-design-icons-iconfont@^2.0.5",
+      "ng-file-upload": "npm:ng-file-upload@^12.0.4",
+      "scss": "github:mobilexag/plugin-sass@^0.4.3",
+      "text": "github:systemjs/plugin-text@^0.0.8",
+      "three": "github:mrdoob/three.js@master",
+      "three-orbit-controls": "github:deltaaskii/three-orbit-controls@master",
+      "underscore": "npm:underscore@^1.8.3"
     },
     "devDependencies": {
       "babel": "npm:babel-core@^5.8.24",
