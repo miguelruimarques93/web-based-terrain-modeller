@@ -8,6 +8,7 @@ var runSequence = require('run-sequence');
 gulp.task('build:development', function (callback) {
   runSequence(
     'cleanup',
+    'glslify',
     'compile-sass',
     'post-build',
     callback

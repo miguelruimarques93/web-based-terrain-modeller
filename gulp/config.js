@@ -10,6 +10,7 @@ exports.paths.app = exports.paths.root + '/src';
 exports.paths.app_build = exports.paths.root + '/src/build';
 exports.paths.tests = exports.paths.root + '/src/app/**/*.spec.js';
 exports.paths.blankTemplates = __dirname + '/generators';
+exports.paths.shadersFolder = exports.paths.app + '/app/imgproc/shaders';
 
 exports.sass = {
   watch_src: exports.paths.app + '/**/*.scss',
@@ -27,6 +28,12 @@ exports.js = {
   dest: exports.paths.app_build + '/build.js'
 };
 
+exports.shaders = {
+  src: [ exports.paths.shadersFolder + '/*.fs', exports.paths.shadersFolder + '/*.vs' ],
+  watch_src: [ exports.paths.shadersFolder + '/*.fs', exports.paths.shadersFolder + '/*.vs', exports.paths.shadersFolder + '/*.glsl' ],
+  dest: exports.paths.app + '/app/imgproc'
+};
+
 exports.html = {
   watch_src: exports.paths.app + '/**/*.html'
 };
@@ -36,6 +43,19 @@ exports.resolveTo = function (resolvePath) {
     glob = glob || '';
     return path.resolve(path.join(exports.paths.root, resolvePath, glob));
   };
+};
+
+exports.doc = {
+  jsdoc : {
+    opts: {
+      destination: exports.paths.root + "/docs"
+    }
+  },
+  src : [
+    'README.md',
+    exports.paths.app + '/app/**/*.js',
+    '!' + exports.paths.app + '/app/vendor/**/*.*',
+  ]
 };
 
 exports.resolveToComponents = exports.resolveTo('src/app/components');

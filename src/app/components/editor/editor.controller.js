@@ -26,6 +26,22 @@ function get_buffer(mat) {
   }
 }
 
+/**
+ * @param mat {jsfeat.matrix_t}
+ */
+function get_channels_num(mat) {
+  switch (jsfeat.get_channel(mat.channel)) {
+    case jsfeat.C1_t:
+      return 1;
+    case jsfeat.C2_t: 
+      return 2;
+    case jsfeat.C3_t: 
+      return 3;
+    case jsfeat.C4_t: 
+      return 4;
+  }
+}
+
 function element_wise_operation(op) {
   return (A, B, C) => {
     if (A.cols != C.cols || A.rows != C.cols) {
@@ -48,7 +64,7 @@ function element_wise_operation(op) {
       }
       
       var b_buffer = get_buffer(B);
-      for (var i = 0; i < size; ++i)
+      for (var i = 0; i < b_buffer.length; ++i)
       {
         c_buffer[i] = op(a_buffer[i], b_buffer[i]);
       }  
@@ -64,7 +80,7 @@ let multiply = element_wise_operation((x, y) => x * y);
  * @param src {jsfeat.matrix_t}
  * @param dest {jsfeat.matrix_t}
  */
-function normalize(src, dest) {
+function normalize(src, dest, mult) {
   if (src.cols != dest.cols || src.rows != dest.rows) {
     throw "dest and src with different sizes.";
   }
@@ -107,11 +123,19 @@ function create_canvas_from_matrix(src) {
   var imageData = context.getImageData(0, 0, src.cols, src.rows);
   var data = imageData.data;
   var src_buffer = get_buffer(src);
+  var incr = get_channels_num(src);
   
-  for (var i = 0, j = 0; i < data.length; i += 4, ++j) {
+  for (var i = 0, j = 0; i < data.length; i += 4, j += incr) {
     data[i] = src_buffer[j];
-    data[i + 1] = src_buffer[j];
-    data[i + 2] = src_buffer[j];
+    
+    if (incr == 3) {
+      data[i + 1] = src_buffer[j + 1];
+      data[i + 2] = src_buffer[j + 2];
+    } else {
+      data[i + 1] = src_buffer[j];
+      data[i + 2] = src_buffer[j];
+    }
+    
     data[i + 3] = 255;
   }
   
@@ -122,12 +146,13 @@ function create_canvas_from_matrix(src) {
 
 class EditorController {
   
-  constructor($mdDialog, $element, $timeout, FileReader, $scope, $mdMenu, $q, heightmapReader, randomSurfaceGenerator) {
+  constructor($mdDialog, $element, $timeout, FileReader, $scope, $mdMenu, $q, heightmapReader, normalmapGenerator, randomSurfaceGenerator) {
     this.mdDialog = $mdDialog;
     this.FileReader = FileReader;
     this.$scope = $scope;
     this.$mdMenu = $mdMenu;
     this.heightmapReader = heightmapReader;
+    this.normalmapGenerator = normalmapGenerator;
     this.randomSurfaceGenerator = randomSurfaceGenerator;
     this.$element = $element;
     this.images = [];
@@ -170,7 +195,7 @@ class EditorController {
   init() {    
     this.width = this.canvas.innerWidth();
     this.height = this.canvas.innerHeight();
-    
+
     this.renderer = new THREE.WebGLRenderer({ 
       canvas: this.canvas.get(0), 
       antialias: true,
@@ -194,15 +219,17 @@ class EditorController {
     // this.controls = new THREE.OrbitControls(this.camera, this.canvas.get(0));
     this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
     
-    this.pointLight = new THREE.PointLight(0xFFFFFF);
+    this.hemisphereLight = new THREE.HemisphereLight(0xFFFFBB, 0x080800, 1);
+    
+    // this.pointLight = new THREE.PointLight(0xFFFFFF);
 
-    // set its position
-    this.pointLight.position.x = 0;
-    this.pointLight.position.y = 500;
-    this.pointLight.position.z = -500;
+    // // set its position
+    // this.pointLight.position.x = 0;
+    // this.pointLight.position.y = 500;
+    // this.pointLight.position.z = -500;
 
     // add to the scene
-    this.scene.add(this.pointLight);
+    this.scene.add(this.hemisphereLight);
     
     this.resize();
     
@@ -241,8 +268,11 @@ class EditorController {
     }
     
     this.images.push(create_canvas_from_matrix(data_mat));
+    this.normalmapGenerator.from_heightmap(data_mat, 0.1).then(((nmap) => {
+      this.images.push(create_canvas_from_matrix(nmap));
+    }).bind(this), () => {});
     
-    var data = data_mat.buffer.u8;
+    var data = get_buffer(data_mat);
     var geometry = new THREE.PlaneBufferGeometry(data_mat.cols, data_mat.rows, data_mat.cols - 1, data_mat.rows - 1);
     var vertices = geometry.attributes.position.array;
     for (var i = 0, j = 0; i < vertices.length; ++i, j += 3) {
@@ -293,15 +323,18 @@ class EditorController {
         clickOutsideToClose: false
       }).then(
         (() => {
-          this.randomSurfaceGenerator.generate_surface_perlin_noise(
-            256, 
-            256, 
+          let start = performance.now();
+          this.randomSurfaceGenerator.generate_surface_perlin_noise_gpu(
+            256, 256, 
             this.$scope.perlin_noise.frequency, 
             this.$scope.perlin_noise.octaves, 
             this.$scope.perlin_noise.persistence, 
             this.$scope.perlin_noise.lacunarity, 
             this.$scope.perlin_noise.base
-          ).then(resolve);
+          ).then((data_mat) => {
+            console.log(`Perlin noise synthesis done in ${performance.now() - start} ms`);
+            resolve(data_mat);
+          });
         }).bind(this),
         () => reject()
       );
@@ -330,15 +363,18 @@ class EditorController {
         clickOutsideToClose: false
       }).then(
         (() => {
-          this.randomSurfaceGenerator.generate_surface_simplex_noise(
-            256, 
-            256, 
+          let start = performance.now();
+          this.randomSurfaceGenerator.generate_surface_simplex_noise_gpu(
+            256, 256, 
             this.$scope.simplex_noise.frequency, 
             this.$scope.simplex_noise.octaves, 
             this.$scope.simplex_noise.persistence, 
             this.$scope.simplex_noise.lacunarity, 
             this.$scope.simplex_noise.base
-          ).then(resolve);
+          ).then((data_mat) => {
+            console.log(`Simplex noise synthesis done in ${performance.now() - start} ms`);
+            resolve(data_mat);
+          });
         }).bind(this),
         () => reject()
       );
@@ -350,6 +386,7 @@ class EditorController {
   }
   
   random_fourier_surface_(ev) {
+    
     return this.$q(((resolve, reject) => {
       this.mdDialog.show({
         template: fourierSynthesisDialogTemplate,
@@ -366,7 +403,14 @@ class EditorController {
         },
         clickOutsideToClose: false
       }).then(
-        (() => this.randomSurfaceGenerator.generate_surface_fourier_synthesis(256, 256, this.$scope.fourier_synthesis.power).then(resolve)).bind(this),
+        (() => {
+          let start = performance.now();
+          this.randomSurfaceGenerator.generate_surface_fourier_synthesis_gpu(256, 256, this.$scope.fourier_synthesis.power)
+            .then((data_mat) => {
+              console.log(`Fourier Synthesis done in ${performance.now() - start} ms`);
+              resolve(data_mat); 
+            });
+        }).bind(this),
         () => reject()
       );
     }).bind(this));
@@ -398,6 +442,8 @@ class EditorController {
     if (_.has(this, 'plane')) {
       this.scene.remove(this.plane);
     }
+    
+    let start = performance.now();
   
     var blurred_random_mat = new jsfeat.matrix_t(random_mat.cols, random_mat.rows, random_mat.type);
     jsfeat.imgproc.gaussian_blur(random_mat, blurred_random_mat, 100);
@@ -411,6 +457,8 @@ class EditorController {
     add(this.deterministic_mat, normalized_deterministic_mat, final_mat);
     normalize(final_mat, final_mat);
     multiply(final_mat, 255, random_mat);
+    
+    console.log(`Blending done in ${performance.now() - start} ms`);
     
     this.set_surface(random_mat);
   }

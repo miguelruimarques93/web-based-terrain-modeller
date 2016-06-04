@@ -1,0 +1,10 @@
+{ 
+	"main": "build/jsfeat",
+ 	"ignore": ["compile", "src"],
+ 	"format": "global", 
+ 	"shim": { 
+ 		"build/jsfeat": {
+ 			"exports": "jsfeat"
+ 		}
+ 	}
+}

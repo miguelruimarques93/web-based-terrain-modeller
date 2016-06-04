@@ -10,18 +10,20 @@
     "connect-modrewrite": "^0.9.0",
     "del": "^2.2.0",
     "fs-extra": "^0.26.7",
+    "glslify": "^5.0.2",
     "gulp": "^3.9.1",
     "gulp-angular-templatecache": "^1.8.0",
     "gulp-autoprefixer": "^3.1.0",
     "gulp-inject": "^4.0.0",
     "gulp-insert": "^0.5.0",
+    "gulp-jsdoc3": "^0.3.0",
     "gulp-minify-html": "^1.0.6",
     "gulp-ng-html2js": "^0.2.2",
     "gulp-rename": "^1.2.2",
     "gulp-sass": "^2.2.0",
     "gulp-sourcemaps": "^1.6.0",
     "gulp-template": "^4.0.0",
-    "jspm": "^0.16.33",
+    "jspm": "^0.16.35",
     "node-sass": "^3.4.2",
     "require-dir": "^0.3.0",
     "run-sequence": "^1.1.5",
@@ -45,14 +47,16 @@
       "angular-messages": "github:angular/bower-angular-messages@^1.5.5",
       "angular-mocks": "github:angular/bower-angular-mocks@^1.5.3",
       "angular-ui-router": "github:angular-ui/ui-router@^0.2.18",
+      "fs": "github:jspm/nodelibs-fs@0.1.2",
       "jquery": "npm:jquery@^2.2.3",
-      "jsfeat": "github:inspirit/jsfeat@^0.0.8",
+      "jsfeat": "github:inspirit/jsfeat@0.0.8",
       "leaflet": "github:Leaflet/Leaflet@^0.7.7",
       "material-design-icons-iconfont": "npm:material-design-icons-iconfont@^2.0.5",
       "ng-file-upload": "npm:ng-file-upload@^12.0.4",
+      "path": "github:jspm/nodelibs-path@0.1.0",
       "scss": "github:mobilexag/plugin-sass@^0.4.3",
       "text": "github:systemjs/plugin-text@^0.0.8",
-      "three": "github:mrdoob/three.js@master",
+      "three": "github:mrdoob/three.js@r77",
       "three-orbit-controls": "github:deltaaskii/three-orbit-controls@master",
       "underscore": "npm:underscore@^1.8.3"
     },
@@ -60,6 +64,50 @@
       "babel": "npm:babel-core@^5.8.24",
       "babel-runtime": "npm:babel-runtime@^5.8.24",
       "core-js": "npm:core-js@^1.1.4"
+    },
+    "overrides": {
+      "npm:babel-runtime@5.8.38": {
+        "main": false,
+        "dependencies": {},
+        "optionalDependencies": {
+          "core-js": "^1.2.0"
+        }
+      },
+      "github:mrdoob/three.js@r77": {
+        "main": "build/three",
+        "ignore": [
+          "docs",
+          "src",
+          "editor",
+          "test",
+          "utils",
+          "examples/*.html",
+          "examples/models",
+          "examples/scenes",
+          "examples/sounds",
+          "examples/obj",
+          "examples/textures"
+        ],
+        "format": "global",
+        "shim": {
+          "build/three": {
+            "exports": "THREE"
+          }
+        }
+      },
+      "github:inspirit/jsfeat@0.0.8": {
+        "main": "build/jsfeat",
+        "ignore": [
+          "compile",
+          "src"
+        ],
+        "format": "global",
+        "shim": {
+          "build/jsfeat": {
+            "exports": "jsfeat"
+          }
+        }
+      }
     }
   }
 }

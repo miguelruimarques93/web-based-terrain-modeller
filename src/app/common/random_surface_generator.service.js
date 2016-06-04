@@ -1,6 +1,41 @@
 import jsfeat from 'jsfeat';
 import noise from 'noisejs';
+import gpu from '../imgproc/gpu';
+import gpu_matrix from '../imgproc/gpu_matrix';
+
 import { FFT, FrequencyFilter } from 'FFT';
+
+/**
+ * @param {jsfeat.matrix_t} matrix
+ */
+function normalize(matrix, mult = 255) {
+    var buffer = matrix.buffer.f32; // FIXME
+    var max = new Array(matrix.channel);
+    var min = new Array(matrix.channel);
+    
+    for (var c = 0; c < matrix.channel; ++c)
+    {
+        max[c] = buffer[c];
+        min[c] = buffer[c];
+    }
+    
+    for (var i = 0; i < buffer.length; i += matrix.channel) 
+    {
+        for (var c = 0; c < matrix.channel; ++c)
+        {
+            max[c] = Math.max(max[c], buffer[i + c]);
+            min[c] = Math.min(min[c], buffer[i + c]);
+        }
+    }
+    
+    for (var i = 0; i < buffer.length; i += matrix.channel) 
+    {
+        for (var c = 0; c < matrix.channel; ++c)
+        {
+            buffer[i + c] = (buffer[i + c] - min[c]) / (max[c] - min[c]) * mult;
+        }
+    }
+}
 
 function noise2(noise_func) { 
   return (x, y, octaves, persistence, lacunarity, base) => {
@@ -36,16 +71,10 @@ let snoise2 = noise2(noise.simplex2);
 class RandomSurfaceGeneratorService {
   constructor($q) {
       this.$q = $q;
+      this.gpu = new gpu();
   }
   
-  generate_surface_perlin_noise(width, height, frequency, octaves, persistence, lacunarity, base, seed) {
-    if (typeof frequency === 'undefined') { frequency = 160; }
-    if (typeof octaves === 'undefined') { octaves = 10; }
-    if (typeof persistence === 'undefined') { persistence = 0.5; }
-    if (typeof lacunarity === 'undefined') { lacunarity = 2.0; }
-    if (typeof base === 'undefined') { base = 0.0; }
-    if (typeof seed === 'undefined') { seed = Math.random(); }
-    
+  generate_surface_perlin_noise(width, height, frequency = 160, octaves = 10, persistence = 0.5, lacunarity = 2.0, base = 0.0, seed = Math.random()) {   
     console.log(`Generating perlin surface with seed: ${seed}`);
     
     return this.$q((resolve, reject) => {
@@ -63,14 +92,25 @@ class RandomSurfaceGeneratorService {
     });
   }
   
-  generate_surface_simplex_noise(width, height, frequency, octaves, persistence, lacunarity, base, seed) {
-    if (typeof frequency === 'undefined') { frequency = 160; }
-    if (typeof octaves === 'undefined') { octaves = 10; }
-    if (typeof persistence === 'undefined') { persistence = 0.5; }
-    if (typeof lacunarity === 'undefined') { lacunarity = 2.0; }
-    if (typeof base === 'undefined') { base = 0.0; }
-    if (typeof seed === 'undefined') { seed = Math.random(); }
+  generate_surface_perlin_noise_gpu(width, height, frequency = 160, octaves = 10, persistence = 0.5, lacunarity = 2.0, base = 0.0, seed = Math.random()) {   
+    console.log(`Generating perlin surface with seed: ${seed}`);
     
+    return this.$q((resolve, reject) => {
+      /** @type {gpu} */
+      let gpu = this.gpu;
+      
+      let gpu_mat = gpu.perlin_noise(width, height, frequency, octaves, persistence, lacunarity, base);
+      
+      let result = gpu_mat.download();
+      
+      normalize(result);
+      gpu_mat.destroy();
+      
+      resolve(result);
+    });
+  }
+  
+  generate_surface_simplex_noise(width, height, frequency = 160, octaves = 10, persistence = 0.5, lacunarity = 2.0, base = 0.0, seed = Math.random()) {    
     console.log(`Generating simplex surface with seed: ${seed}`);
     
     return this.$q((resolve, reject) => {
@@ -88,9 +128,56 @@ class RandomSurfaceGeneratorService {
     });
   }
   
-  generate_surface_fourier_synthesis(width, height, power) {
-    if (typeof power === 'undefined') { power = 2.4; }
+  generate_surface_simplex_noise_gpu(width, height, frequency = 160, octaves = 10, persistence = 0.5, lacunarity = 2.0, base = 0.0, seed = Math.random()) {    
+    console.log(`Generating simplex surface with seed: ${seed}`);
     
+    return this.$q((resolve, reject) => {
+      /** @type {gpu} */
+      let gpu = this.gpu;
+      
+      let gpu_mat = gpu.simplex_noise(width, height, frequency, octaves, persistence, lacunarity, base);
+      
+      let result = gpu_mat.download();
+      
+      normalize(result);
+      
+      gpu_mat.destroy();
+      
+      resolve(result);
+    });
+  }
+  
+  generate_surface_fourier_synthesis_gpu(width, height, power = 2.4) {
+    return this.$q((resolve, reject) => {
+      /** @type {gpu} */
+      let gpu = this.gpu;
+      
+      let gpu_random_mat = gpu.white_noise(width, height);
+      
+      var gpu_random_fft_mat = gpu.compute_fft(gpu_random_mat);
+      var gpu_random_filtered_fft_mat = gpu.fPowerMinusBeta(gpu_random_fft_mat, power);
+      
+      var gpu_result = gpu.compute_fft(gpu_random_filtered_fft_mat, false);
+      
+      let isResultInGPU = gpu_result instanceof gpu_matrix;
+      
+      var result = isResultInGPU ? gpu_result.download() : gpu_result;
+      if (isResultInGPU)
+      {        
+        gpu_result.destroy();
+      }
+      
+      gpu_random_mat.destroy();
+      gpu_random_fft_mat.destroy();
+      gpu_random_filtered_fft_mat.destroy();
+      
+      normalize(result);
+      
+      resolve(result);
+    });
+  }
+  
+  generate_surface_fourier_synthesis(width, height, power = 2.4) {
     return this.$q((resolve, reject) => {
       var size = width * height;
       var re = [], im = [];
@@ -129,8 +216,14 @@ class RandomSurfaceGeneratorService {
       
       var mat = new jsfeat.matrix_t(width, height, jsfeat.U8C1_t);
       var buffer = mat.buffer.u8;
-      var max = Math.max.apply(null, re);
-      var min = Math.min.apply(null, re);
+      var max = re[0];
+      var min = re[0];
+      
+      for (var i = 0; i < re.length; ++i)
+      {
+        max = Math.max(max, re[i]);
+        min = Math.min(min, re[i]);
+      }
       
       for (var i = 0; i < buffer.length; ++i) {
         buffer[i] = ((re[i] - min) / (max - min)) * 255;

@@ -21,6 +21,7 @@ gulp.task('serve', ['build:development'], function () {
   });
   
   gulp.watch(config.sass.watch_src, ['compile-sass']);
+  gulp.watch(config.shaders.src, ['glslify']);
   gulp.watch(config.html.watch_src, function () { browserSync.reload(); });
   gulp.watch(config.js.watch_src, function () { browserSync.reload(); });
 });
