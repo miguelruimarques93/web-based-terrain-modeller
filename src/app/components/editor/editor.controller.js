@@ -2,6 +2,7 @@ import angular from 'angular';
 import THREE from 'three';
 import 'three-orbit-controls';
 import 'three-trackball-controls';
+import jsfeat from 'jsfeat';
 import _ from 'underscore';
 import imageTemplate from './image_dialog.tpl.html!text';
 import fourierSynthesisDialogTemplate from './fourier_synthesis_dialog.tpl.html!text';
@@ -297,15 +298,17 @@ class EditorController {
   }
   
   openFile(file) {
-    this.heightmapReader.from_file(file, this.$scope).then(((data_mat) => {     
-      this.deterministic_mat = data_mat;
-      
-      this.set_surface(this.deterministic_mat);
-      
-    }).bind(this));
+    if (file !== null) {
+      this.heightmapReader.from_file(file, this.$scope).then(((data_mat) => {
+        this.deterministic_mat = data_mat;
+
+        this.set_surface(this.deterministic_mat);
+
+      }).bind(this));
+    }  
   }
   
-  random_perlin_surface_(ev) { 
+  random_perlin_surface_(ev, width = 256, height = 256) { 
     return this.$q(((resolve, reject) => {
       this.mdDialog.show({
         template: perlinNoiseDialogTemplate,
@@ -325,7 +328,7 @@ class EditorController {
         (() => {
           let start = performance.now();
           this.randomSurfaceGenerator.generate_surface_perlin_noise_gpu(
-            256, 256, 
+            width, height, 
             this.$scope.perlin_noise.frequency, 
             this.$scope.perlin_noise.octaves, 
             this.$scope.perlin_noise.persistence, 
@@ -345,7 +348,7 @@ class EditorController {
     this.random_perlin_surface_(ev).then(this.set_surface.bind(this));
   }
   
-  random_simplex_surface_(ev) { 
+  random_simplex_surface_(ev, width = 256, height = 256) { 
     return this.$q(((resolve, reject) => {
       this.mdDialog.show({
         template: simplexNoiseDialogTemplate,
@@ -365,7 +368,7 @@ class EditorController {
         (() => {
           let start = performance.now();
           this.randomSurfaceGenerator.generate_surface_simplex_noise_gpu(
-            256, 256, 
+            width, height,
             this.$scope.simplex_noise.frequency, 
             this.$scope.simplex_noise.octaves, 
             this.$scope.simplex_noise.persistence, 
@@ -385,7 +388,7 @@ class EditorController {
     this.random_simplex_surface_(ev).then(this.set_surface.bind(this));
   }
   
-  random_fourier_surface_(ev) {
+  random_fourier_surface_(ev, width = 256, height = 256) {
     
     return this.$q(((resolve, reject) => {
       this.mdDialog.show({
@@ -405,7 +408,7 @@ class EditorController {
       }).then(
         (() => {
           let start = performance.now();
-          this.randomSurfaceGenerator.generate_surface_fourier_synthesis_gpu(256, 256, this.$scope.fourier_synthesis.power)
+          this.randomSurfaceGenerator.generate_surface_fourier_synthesis_gpu(width, height, this.$scope.fourier_synthesis.power)
             .then((data_mat) => {
               console.log(`Fourier Synthesis done in ${performance.now() - start} ms`);
               resolve(data_mat); 
@@ -474,7 +477,7 @@ class EditorController {
       return;
     }
     
-    this.random_perlin_surface_(ev).then(this.blend_.bind(this));
+    this.random_perlin_surface_(ev, this.deterministic_mat.cols, this.deterministic_mat.rows).then(this.blend_.bind(this));
   }
   
   add_simplex_detail(ev) {
@@ -488,7 +491,7 @@ class EditorController {
       return;
     }
     
-    this.random_simplex_surface_(ev).then(this.blend_.bind(this));
+    this.random_simplex_surface_(ev, this.deterministic_mat.cols, this.deterministic_mat.rows).then(this.blend_.bind(this));
   }
   
   add_fourier_detail(ev) {
@@ -502,7 +505,7 @@ class EditorController {
       return;
     }
     
-    this.random_fourier_surface_(ev).then(this.blend_.bind(this));
+    this.random_fourier_surface_(ev, this.deterministic_mat.cols, this.deterministic_mat.rows).then(this.blend_.bind(this));
   }  
   
   sampleAction(name, ev) {
@@ -520,9 +523,5 @@ class EditorController {
     toolbar.get(0).style.cssText = toolbar.data('md-restore-style') || '';
   }
 }
-
-EditorController.PERLIN = 0x0;
-EditorController.SIMPLEX = 0x1;
-EditorController.FOURIER = 0x2;
 
 export default EditorController;
