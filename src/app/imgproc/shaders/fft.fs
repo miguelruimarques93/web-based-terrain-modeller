@@ -70,7 +70,7 @@ vec2 fft_op(vec2 p)
     
     vec2 result = butterfly(v0, v1, angle);
     
-    return u_forward ? result : result.yx / u_subtransformSize;
+    return u_forward ? result : result.yx/* / u_subtransformSize*/;
 } 
 
 void main() {  

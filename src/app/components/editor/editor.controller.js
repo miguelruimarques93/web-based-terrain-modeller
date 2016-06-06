@@ -95,7 +95,7 @@ function normalize(src, dest, mult) {
   }
   
   var src_buffer = get_buffer(src);
-  
+
   var max = _.max(src_buffer);
   var min = _.min(src_buffer);
   
@@ -111,7 +111,7 @@ function normalize(src, dest, mult) {
  * @param src {jsfeat.matrix_t}
  * @return {HTMLCanvasElement}
  */
-function create_canvas_from_matrix(src) {
+function create_canvas_from_matrix(src, mult = 1.0) {
   var canvas = document.createElement('canvas');
   
   canvas.width = src.cols;
@@ -127,14 +127,52 @@ function create_canvas_from_matrix(src) {
   var incr = get_channels_num(src);
   
   for (var i = 0, j = 0; i < data.length; i += 4, j += incr) {
-    data[i] = src_buffer[j];
+    data[i] = src_buffer[j] * mult;
     
-    if (incr == 3) {
-      data[i + 1] = src_buffer[j + 1];
-      data[i + 2] = src_buffer[j + 2];
+    if (incr >= 3) {
+      data[i + 1] = src_buffer[j + 1] * mult;
+      data[i + 2] = src_buffer[j + 2] * mult;
     } else {
-      data[i + 1] = src_buffer[j];
-      data[i + 2] = src_buffer[j];
+      data[i + 1] = src_buffer[j] * mult;
+      data[i + 2] = src_buffer[j] * mult;
+    }
+    
+    data[i + 3] = 255;
+  }
+  
+  context.putImageData(imageData, 0, 0);
+  
+  return canvas.toDataURL();
+}
+
+/**
+ * @param src {jsfeat.matrix_t}
+ * @return {HTMLCanvasElement}
+ */
+function create_canvas_from_matrix_normal(src) {
+  var canvas = document.createElement('canvas');
+  
+  canvas.width = src.cols;
+  canvas.height = src.rows;
+  
+  canvas.style.width = src.cols + 'px';
+  canvas.style.height = src.rows + 'px';
+  
+  var context = canvas.getContext('2d');
+  var imageData = context.getImageData(0, 0, src.cols, src.rows);
+  var data = imageData.data;
+  var src_buffer = get_buffer(src);
+  var incr = get_channels_num(src);
+  
+  for (var i = 0, j = 0; i < data.length; i += 4, j += incr) {
+    data[i] = 255 * (src_buffer[j] + 1) / 2;
+    
+    if (incr >= 3) {
+      data[i + 1] = 255 * (src_buffer[j + 1] + 1) / 2;
+      data[i + 2] = 255 * (src_buffer[j + 2] + 1) / 2;
+    } else {
+      data[i + 1] = 255 * (src_buffer[j] + 1) / 2;
+      data[i + 2] = 255 * (src_buffer[j] + 1) / 2;
     }
     
     data[i + 3] = 255;
@@ -147,7 +185,7 @@ function create_canvas_from_matrix(src) {
 
 class EditorController {
   
-  constructor($mdDialog, $element, $timeout, FileReader, $scope, $mdMenu, $q, heightmapReader, normalmapGenerator, randomSurfaceGenerator) {
+  constructor($mdDialog, $element, $timeout, FileReader, $scope, $mdMenu, $q, heightmapReader, normalmapGenerator, randomSurfaceGenerator, gpu) {
     this.mdDialog = $mdDialog;
     this.FileReader = FileReader;
     this.$scope = $scope;
@@ -158,7 +196,8 @@ class EditorController {
     this.$element = $element;
     this.images = [];
     this.$q = $q;
-    
+    this.gpu = gpu;
+
     this.init_scope();
     
     $timeout((() => {
@@ -189,6 +228,10 @@ class EditorController {
       persistence: 0.5,
       lacunarity: 2.0,
       base: 0.0
+    };
+
+    this.$scope.blend = {
+      strength: 100
     };
     
   }
@@ -262,16 +305,25 @@ class EditorController {
     this.renderer.render(this.scene, this.camera, null, true);
   }
   
-  set_surface(data_mat) {
+  set_surface(data_mat, normal_map) {
     
     if (_.has(this, 'plane')) {
       this.scene.remove(this.plane);
     }
     
     this.images.push(create_canvas_from_matrix(data_mat));
-    this.normalmapGenerator.from_heightmap(data_mat, 0.1).then(((nmap) => {
-      this.images.push(create_canvas_from_matrix(nmap));
-    }).bind(this), () => {});
+
+    if (normal_map === undefined)
+    {
+      this.normalmapGenerator.from_heightmap(data_mat, 0.1).then(((nmap) => {
+        this.images.push(create_canvas_from_matrix(nmap));
+      }).bind(this), () => {});
+    }
+    else
+    {
+      this.images.push(create_canvas_from_matrix_normal(normal_map));
+    }
+    
     
     var data = get_buffer(data_mat);
     var geometry = new THREE.PlaneBufferGeometry(data_mat.cols, data_mat.rows, data_mat.cols - 1, data_mat.rows - 1);
@@ -446,24 +498,52 @@ class EditorController {
       this.scene.remove(this.plane);
     }
     
-    let start = performance.now();
+    let start = performance.now(); 
   
-    var blurred_random_mat = new jsfeat.matrix_t(random_mat.cols, random_mat.rows, random_mat.type);
-    jsfeat.imgproc.gaussian_blur(random_mat, blurred_random_mat, 100);
-    subtract(random_mat, blurred_random_mat, blurred_random_mat);
+    /** @type {gpu} */
+    let gpu = this.gpu;
     
-    var normalized_deterministic_mat = new jsfeat.matrix_t(this.deterministic_mat.cols, this.deterministic_mat.rows, jsfeat.F32C1_t);
-    normalize(this.deterministic_mat, normalized_deterministic_mat);
-    multiply(blurred_random_mat, normalized_deterministic_mat, normalized_deterministic_mat);
+    let g_random = gpu.create_gpu_matrix(random_mat);
     
-    var final_mat = new jsfeat.matrix_t(random_mat.cols, random_mat.rows, jsfeat.F32C1_t);
-    add(this.deterministic_mat, normalized_deterministic_mat, final_mat);
-    normalize(final_mat, final_mat);
-    multiply(final_mat, 255, random_mat);
+    let g_random_fft = gpu.compute_fft(g_random, true);
+    let g_random_fft_blur = gpu.blur(g_random_fft, this.$scope.blend.strength);
     
+    let g_random_blur = gpu.compute_fft(g_random_fft_blur, false);
+
+    let g_random_details = gpu.subtract(g_random, g_random_blur); 
+
+    let deterministic_mat_f32 = new jsfeat.matrix_t(this.deterministic_mat.cols, this.deterministic_mat.rows, this.deterministic_mat.channel | jsfeat.F32_t);
+    this.deterministic_mat.copy_to(deterministic_mat_f32);
+
+    let g_deterministic = gpu.create_gpu_matrix(deterministic_mat_f32);
+    let g_norm_deterministic = gpu.normalize(g_deterministic);
+    
+    let g_scaled_random_details = gpu.multiply(g_random_details, g_norm_deterministic);
+
+    let g_detailed = gpu.add(g_deterministic, g_scaled_random_details);
+    let g_normalized_detailed = gpu.normalize(g_detailed);
+    let g_result = gpu.multiply(g_normalized_detailed, 255);
+    let g_normal_map = gpu.normalMap(g_result);
+
+    random_mat = g_result.download();
+    let normal_map = g_normal_map.download();
+
+    g_random.destroy();
+    g_random_fft.destroy();
+    g_random_fft_blur.destroy();
+    g_random_blur.destroy();
+    g_random_details.destroy();
+    g_deterministic.destroy();
+    g_norm_deterministic.destroy();
+    g_scaled_random_details.destroy();
+    g_detailed.destroy();
+    g_normalized_detailed.destroy();
+    g_result.destroy();
+    g_normal_map.destroy();
+
     console.log(`Blending done in ${performance.now() - start} ms`);
     
-    this.set_surface(random_mat);
+    this.set_surface(random_mat, normal_map);
   }
   
   add_perlin_detail(ev) {

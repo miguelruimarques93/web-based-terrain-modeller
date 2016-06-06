@@ -21,6 +21,8 @@ function get_buffer(mat) {
 class NormalmapGeneratorService {  
   constructor($q) {
     this.$q = $q;
+    
+    console.log( `Initializing NormalmapGeneratorService`);
   }
   
   /**

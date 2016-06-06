@@ -48,6 +48,8 @@ class gpu_matrix {
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
+    gl.activeTexture(gl.TEXTURE31);
+
     if (!_.has(this, "texture")) 
     {
       this.columns = columns;
@@ -105,6 +107,8 @@ class gpu_matrix {
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
 
+    gl.activeTexture(gl.TEXTURE31);
+
     if (!_.has(this, "options"))
       this.options = { filter: gl.NEAREST, wrap: gl.CLAMP_TO_EDGE };
 
@@ -136,10 +140,11 @@ class gpu_matrix {
       throw "gpu_matrix error: matrix with type different from F32 not implemented.";
     }
     
-    
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
+    gl.activeTexture(gl.TEXTURE31);
+
     if (!_.has(this, "texture"))
     {
       this.columns = matrix.cols;
@@ -238,6 +243,8 @@ class gpu_matrix {
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
+    gl.activeTexture(gl.TEXTURE31);
+
     this.texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, this._get_gl_internal_format(), this.columns, this.rows, 0, this._get_gl_format(), gl.FLOAT, data);

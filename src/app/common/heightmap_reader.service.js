@@ -4,6 +4,8 @@ class HeightmapReaderService {
   constructor($q, FileReader) {
     this.$q = $q;
     this.FileReader = FileReader;
+    
+    console.log( `Initializing HeightmapReaderService`);
   }
   
   from_file(file, scope) {

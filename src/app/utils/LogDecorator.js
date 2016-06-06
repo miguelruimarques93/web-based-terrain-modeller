@@ -1,6 +1,6 @@
 import './supplant';
 
-export { LogDecorator, ExternalLogger }
+export { LogDecorator, ExternalLogger };
 
 /**
  * Decorate the $log to use inject the LogEnhancer features.

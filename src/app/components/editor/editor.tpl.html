@@ -42,6 +42,12 @@
 </md-toolbar>
 
 <div class="no-overflow" layout="row" flex>  
+  <md-content layout-padding>
+    <md-input-container class="md-block">
+      <label>Blend Strength</label>
+      <input ng-model="blend.strength" type="number" step="1" min="1" max="500" />
+    </md-input-container>
+  </md-content>
   <div layout="column" flex><canvas flex /></div>
   <md-content layout-padding ng-show="vm.images.length">
     <md-list class="image-list md-3-line">
