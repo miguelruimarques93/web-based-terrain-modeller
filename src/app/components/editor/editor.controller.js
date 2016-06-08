@@ -260,19 +260,19 @@ class EditorController {
     
     this.camera.lookAt(new THREE.Vector3(0, 0, 0));
     
+    this.surface_material = new THREE.MeshPhongMaterial({
+      color: 0x2194ce,
+      emissive: 0x000000,
+      specular: 0x111111,
+      shininess: 30,
+      side: THREE.DoubleSide
+    });
+
     // this.controls = new THREE.OrbitControls(this.camera, this.canvas.get(0));
     this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
     
     this.hemisphereLight = new THREE.HemisphereLight(0xFFFFBB, 0x080800, 1);
-    
-    // this.pointLight = new THREE.PointLight(0xFFFFFF);
 
-    // // set its position
-    // this.pointLight.position.x = 0;
-    // this.pointLight.position.y = 500;
-    // this.pointLight.position.z = -500;
-
-    // add to the scene
     this.scene.add(this.hemisphereLight);
     
     this.resize();
@@ -305,6 +305,10 @@ class EditorController {
     this.renderer.render(this.scene, this.camera, null, true);
   }
   
+  /**
+   * @param {jsfeat.matrix_t} data_mat
+   * @param {jsfeat.matrix_t} normal_map
+   */
   set_surface(data_mat, normal_map) {
     
     if (_.has(this, 'plane')) {
@@ -316,12 +320,30 @@ class EditorController {
     if (normal_map === undefined)
     {
       this.normalmapGenerator.from_heightmap(data_mat, 0.1).then(((nmap) => {
+        this.surface_material.normalMap = new THREE.Texture(new THREE.DataTexture(nmap, nmap.cols, nmap.rows, THREE.RGBAFormat));
         this.images.push(create_canvas_from_matrix(nmap));
       }).bind(this), () => {});
     }
     else
     {
-      this.images.push(create_canvas_from_matrix_normal(normal_map));
+      let normal_map_rgba = new jsfeat.matrix_t(normal_map.cols, normal_map.rows, jsfeat.U8C4_t);
+      
+      let float_array = normal_map.buffer.f32;
+      let u8c4_array = normal_map_rgba.buffer.u8;
+      
+      let f_size = normal_map.cols * normal_map.rows * normal_map.channel;
+      let u8c4_size = normal_map_rgba.cols * normal_map_rgba.rows *  normal_map_rgba.channel;
+
+      for (let i = 0, j = 0; i < f_size && j < u8c4_size; i += normal_map.channel, j+= normal_map_rgba.channel)
+      {
+        u8c4_array[j] = 255 * (float_array[i] + 1) / 2;
+        u8c4_array[j+1] = 255 * (float_array[i+1] + 1) / 2;
+        u8c4_array[j+2] = 255 * (float_array[i+2] + 1) / 2;
+        u8c4_array[j+3] = 255;
+      }
+
+      this.images.push(create_canvas_from_matrix(normal_map_rgba));
+      this.surface_material.normalMap = new THREE.Texture(new THREE.DataTexture(u8c4_array, normal_map_rgba.cols, normal_map_rgba.rows, THREE.RGBAFormat));
     }
     
     
@@ -335,16 +357,7 @@ class EditorController {
     
     this.camera.lookAt(new THREE.Vector3(128, 128, 0));
 
-    var material = new THREE.MeshPhongMaterial({
-      color: 0x2194ce,
-      emissive: 0x000000,
-      specular: 0x111111,
-      shininess: 30,
-      side: THREE.DoubleSide
-    });
-
-
-    this.plane = new THREE.Mesh(geometry, material);
+    this.plane = new THREE.Mesh(geometry, this.surface_material);
 
     this.scene.add(this.plane);
   }
