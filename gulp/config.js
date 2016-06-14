@@ -11,6 +11,7 @@ exports.paths.app_build = exports.paths.root + '/src/build';
 exports.paths.tests = exports.paths.root + '/src/app/**/*.spec.js';
 exports.paths.blankTemplates = __dirname + '/generators';
 exports.paths.shadersFolder = exports.paths.app + '/app/imgproc/shaders';
+exports.paths.karmaConfigFile = exports.paths.root + '/karma.conf.js';
 
 exports.sass = {
   watch_src: exports.paths.app + '/**/*.scss',

@@ -29,6 +29,7 @@ System.config({
     "fs": "github:jspm/nodelibs-fs@0.1.2",
     "jquery": "npm:jquery@2.2.4",
     "jsfeat": "github:inspirit/jsfeat@0.0.8",
+    "jsverify": "npm:jsverify@0.7.1",
     "leaflet": "github:Leaflet/Leaflet@0.7.7",
     "material-design-icons-iconfont": "npm:material-design-icons-iconfont@2.0.5",
     "ng-file-upload": "npm:ng-file-upload@12.0.4",
@@ -74,7 +75,7 @@ System.config({
       "path-browserify": "npm:path-browserify@0.0.0"
     },
     "github:jspm/nodelibs-process@0.1.2": {
-      "process": "npm:process@0.11.3"
+      "process": "npm:process@0.11.4"
     },
     "github:jspm/nodelibs-stream@0.1.0": {
       "stream-browserify": "npm:stream-browserify@1.0.0"
@@ -308,6 +309,17 @@ System.config({
     "npm:js-base64@2.1.9": {
       "buffer": "github:jspm/nodelibs-buffer@0.1.0"
     },
+    "npm:jsverify@0.7.1": {
+      "assert": "github:jspm/nodelibs-assert@0.1.0",
+      "lazy-seq": "npm:lazy-seq@1.0.0",
+      "process": "github:jspm/nodelibs-process@0.1.2",
+      "rc4": "npm:rc4@0.1.5",
+      "trampa": "npm:trampa@1.0.0",
+      "typify-parser": "npm:typify-parser@1.1.0"
+    },
+    "npm:lazy-seq@1.0.0": {
+      "assert": "github:jspm/nodelibs-assert@0.1.0"
+    },
     "npm:lodash@4.13.1": {
       "buffer": "github:jspm/nodelibs-buffer@0.1.0",
       "process": "github:jspm/nodelibs-process@0.1.2"
@@ -354,7 +366,7 @@ System.config({
       "source-map": "npm:source-map@0.5.6",
       "supports-color": "npm:supports-color@3.1.2"
     },
-    "npm:process@0.11.3": {
+    "npm:process@0.11.4": {
       "assert": "github:jspm/nodelibs-assert@0.1.0"
     },
     "npm:public-encrypt@4.0.0": {
@@ -416,6 +428,9 @@ System.config({
     "npm:supports-color@3.1.2": {
       "has-flag": "npm:has-flag@1.0.0",
       "process": "github:jspm/nodelibs-process@0.1.2"
+    },
+    "npm:trampa@1.0.0": {
+      "assert": "github:jspm/nodelibs-assert@0.1.0"
     },
     "npm:url@0.10.3": {
       "assert": "github:jspm/nodelibs-assert@0.1.0",
