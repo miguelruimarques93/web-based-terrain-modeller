@@ -1,3 +1,7 @@
+import assert from '../utils/assert';
+import { randomUInt } from '../utils/math_utils';
+import { setProperty } from '../utils/utils';
+
 import gpu_matrix from './gpu_matrix';
 
 import vs_pass from './_shaders/pass_through.vs!text';
@@ -6,6 +10,7 @@ import fs_swap from './_shaders/swap.fs!text';
 import fs_gaussian_blur from './_shaders/gaussian_blur.fs!text';
 import fs_f_power_minus_beta from './_shaders/f_power_minus_beta.fs!text';
 import fs_magnitude from './_shaders/magnitude.fs!text';
+import fs_real from './_shaders/real.fs!text';
 import fs_white_noise from './_shaders/white_noise.fs!text';
 import fs_simplex_noise from './_shaders/simplex_noise.fs!text';
 import fs_perlin_noise from './_shaders/perlin_noise.fs!text';
@@ -18,56 +23,6 @@ import fs_multiply from './_shaders/multiply.fs!text';
 import fs_multiply_im from './_shaders/multiply_im.fs!text';
 import fs_divide_im from './_shaders/divide_im.fs!text';
 import fs_normal_map from './_shaders/normal_map.fs!text';
-
-
-function randomUInt()
-{
-  return Math.floor(Math.random() * (Math.ceil(2, 32) - 1));
-}
-
-function setProperty(object, prop, value) 
-{
-  var fields = prop.split(/[\.\[\]]/).filter(elem => elem.length > 0);
-  var tempObj = object;
-  for (var i = 0; i < fields.length - 1; ++i) 
-  {
-    if (tempObj[fields[i]] === undefined) 
-    {
-      tempObj[fields[i]] = {};
-    }
-    tempObj = tempObj[fields[i]];
-  }
-  tempObj[fields[fields.length - 1]] = value;
-}
-
-function normalize(matrix, mult = 255) {
-    var buffer = matrix.buffer.f32; // FIXME
-    var max = new Array(matrix.channel);
-    var min = new Array(matrix.channel);
-    
-    for (var c = 0; c < matrix.channel; ++c)
-    {
-        max[c] = buffer[c];
-        min[c] = buffer[c];
-    }
-    
-    for (var i = 0; i < buffer.length; i += matrix.channel) 
-    {
-        for (var c = 0; c < matrix.channel; ++c)
-        {
-            max[c] = Math.max(max[c], buffer[i + c]);
-            min[c] = Math.min(min[c], buffer[i + c]);
-        }
-    }
-    
-    for (var i = 0; i < buffer.length; i += matrix.channel) 
-    {
-        for (var c = 0; c < matrix.channel; ++c)
-        {
-            buffer[i + c] = (buffer[i + c] - min[c]) / (max[c] - min[c]) * mult;
-        }
-    }
-}
 
 /**
  * GPU class
@@ -108,10 +63,16 @@ class gpu
    */
   compute_fft(matrix, forward = true, result = undefined)
   {
+    assert(matrix.type == jsfeat.F32_t, "FFT: matrix must contain floats.");
+    if (!forward) 
+      assert(matrix.channel == 2, "IFFT: matrix must contain complex numbers.");
+    else
+      assert(matrix.channel <= 2, "FFT: matrix must not have more than 2 channel.");
+
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
-    let width = matrix.columns;
+    let width = matrix.cols;
     let height = matrix.rows;
     
     gl.viewport(0, 0, width, height);
@@ -143,13 +104,7 @@ class gpu
     let iterations = horizontalIterations + verticalIterations;
     
     gl.bindVertexArray(this.vertexArray);
-    
-    let subtransformProgram = this.horizontalFFTShaderProgram;
-    gl.useProgram(subtransformProgram);
-    
-    gl.uniform1f(subtransformProgram.uniformLocations.u_transformSize, width);
-    gl.uniform1i(subtransformProgram.uniformLocations.u_forward, forward);
-    
+      
     const textureNumbers = [2, 1];
     // const fbNames = ["ping(1)", "pong(2)"];
     const pingPongMatrix = [pingTransform, pongTransform];
@@ -158,6 +113,29 @@ class gpu
     let framebuffer;
     let inputTextureNumber;
     
+    if (!forward) // Swapping Quadrants
+    {
+      inputTextureNumber = 0;
+      framebuffer = pingPongMatrix[0].framebuffer;
+      
+      gl.useProgram(this.swapShaderProgram);
+      gl.uniform1i(this.swapShaderProgram.uniformLocations.u_input, inputTextureNumber);
+      gl.uniform2f(this.swapShaderProgram.uniformLocations.u_transformSize, width, height);
+      
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, framebuffer);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+      textureNumbers.reverse();
+      pingPongMatrix.reverse();     
+    }
+
+    let subtransformProgram = this.horizontalFFTShaderProgram;
+    gl.useProgram(subtransformProgram);
+    
+    gl.uniform1f(subtransformProgram.uniformLocations.u_transformSize, width);
+    gl.uniform1i(subtransformProgram.uniformLocations.u_forward, forward);
+
     for ( let i = 0; i < iterations; ++i)
     {
       if (i === horizontalIterations)
@@ -170,7 +148,7 @@ class gpu
         gl.uniform1i(subtransformProgram.uniformLocations.u_forward, forward);
       }
 
-      inputTextureNumber = i === 0 ? 0 : textureNumbers[i % 2];
+      inputTextureNumber = forward && i === 0 ? 0 : textureNumbers[i % 2];
       framebuffer = pingPongMatrix[i % 2].framebuffer;
 
       subtransformSize *= 2; // subtransformSize <<= 1;
@@ -183,7 +161,7 @@ class gpu
       gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
     }
 
-    if (!forward) 
+    if (!forward && height * width !== 1) 
     {
       // divide matrix by height
       this.divide(pingPongMatrix[(iterations - 1) % 2], height * width, pingPongMatrix[iterations % 2]);
@@ -194,62 +172,20 @@ class gpu
       pingPongMatrix.reverse();      
     }
 
-    // if (!forward) divide matrix by height
-
-    // if (!forward)
-    // {
-    //   inputTextureNumber = (iterations % 2 === 0) ? 2 : 1;
-    //   framebuffer = (iterations % 2 === 0) ? pingTransform.framebuffer : pongTransform.framebuffer;
-
-    //   if (iterations % 2 === 0)
-    //   {
-    //     gpu.divide(pingTransform, );
-    //   }
-    //   else
-    //   {
-    //     gpu.divide();
-    //   }
-      
-    // }
-
-    if (!forward && width <= 512 && height <= 512)
+    if (!forward)
     {
-      // Calculating IFFT magnitude
-      
+      // Return only the real channel
       inputTextureNumber = textureNumbers[iterations % 2];
       framebuffer = result.framebuffer;
 
-      gl.useProgram(this.magnitudeShaderProgram);
-      gl.uniform1i(this.magnitudeShaderProgram.uniformLocations.u_input, inputTextureNumber);
-      gl.uniform2f(this.magnitudeShaderProgram.uniformLocations.u_transformSize, width, height);
+      gl.useProgram(this.realShaderProgram);
+      gl.uniform1i(this.realShaderProgram.uniformLocations.u_input, inputTextureNumber);
+      gl.uniform2f(this.realShaderProgram.uniformLocations.u_transformSize, width, height);
       
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, framebuffer);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
     } 
-    else if (!forward)
-    {
-      let complex_matrix = pingPongMatrix[(iterations - 1) % 2].download();
-      let magnitude_matrix = new jsfeat.matrix_t(complex_matrix.cols, complex_matrix.rows, jsfeat.F32C1_t);
-      
-      let complex_buffer = complex_matrix.buffer.f32;
-      let magnitude_buffer = magnitude_matrix.buffer.f32;
-      
-      for (let i = 0, j = 0; i < complex_buffer.length; i += complex_matrix.channel, ++j)
-      {
-          magnitude_buffer[j] = Math.sqrt(complex_buffer[i] * complex_buffer[i] + complex_buffer[i+1] * complex_buffer[i+1]);
-      }
-      
-      
-      result.destroy();
-      result = magnitude_matrix;
-      
-      /*normalize(magnitude_matrix, 1);
-      
-      
-      
-      result.upload(magnitude_matrix);*/
-    }
     else 
     {
       // Swaping quadrants from FFT
@@ -283,10 +219,12 @@ class gpu
    */
   blur(matrix, stdDev = 0.25, result = undefined)
   {
+    assert(matrix.channel == 2 && matrix.type == jsfeat.F32_t, "Gaussian Blur needs a matrix in frequency domain.");
+
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix.columns;
+    let width = matrix.cols;
     let height = matrix.rows;
     
     gl.viewport(0, 0, width, height);
@@ -327,10 +265,12 @@ class gpu
    */
   fPowerMinusBeta(matrix, beta = 1.8, result = undefined)
   {
+    assert(matrix.channel == 2 && matrix.type == jsfeat.F32_t, "fPowerMinusBeta needs a matrix in frequency domain.");
+
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix.columns;
+    let width = matrix.cols;
     let height = matrix.rows;
     
     gl.viewport(0, 0, width, height);
@@ -369,14 +309,17 @@ class gpu
    */
   minMax(matrix)
   {
+    assert(matrix.channel == 1, "minMax: Matrix can only have 1 channel.");
+
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix.columns;
+    let width = matrix.cols;
     let height = matrix.rows;
     
     gl.viewport(0, 0, 1, height);
     
+    /** @type {gpu_matrix} */
     let minMax = this.create_gpu_matrix();
     minMax.allocate(1, height, 2);
     
@@ -421,7 +364,7 @@ class gpu
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     gl.bindVertexArray(null);
     
-    return { min: result.buffer.f32[0], max: result.buffer.f32[1] };
+    return { min: result.data[0], max: result.data[1] };
   }
 
   /**
@@ -431,10 +374,12 @@ class gpu
    */
   normalize(matrix, result = undefined)
   {
+    assert(matrix.channel == 1, "normalize: matrix can only have 1 channel.");
+
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix.columns;
+    let width = matrix.cols;
     let height = matrix.rows;
         
     let minMax = this.minMax(matrix);
@@ -447,6 +392,8 @@ class gpu
     result.allocate(width, height, 1);
 
     gl.viewport(0, 0, width, height);
+
+    matrix.setTextureParameters({ wrap: gl.CLAMP_TO_EDGE });
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, matrix.texture);
@@ -542,7 +489,7 @@ class gpu
     gl.useProgram(this.snoise2ShaderProgram);
     
     gl.uniform1ui(this.snoise2ShaderProgram.uniformLocations.u_octaves, octaves);
-    gl.uniform1f(this.snoise2ShaderProgram.uniformLocations.u_frequency, persistence);
+    gl.uniform1f(this.snoise2ShaderProgram.uniformLocations.u_frequency, frequency);
     gl.uniform1f(this.snoise2ShaderProgram.uniformLocations.u_persistence, persistence);
     gl.uniform1f(this.snoise2ShaderProgram.uniformLocations.u_lacunarity, lacunarity);
     gl.uniform1f(this.snoise2ShaderProgram.uniformLocations.u_base, base);
@@ -591,7 +538,7 @@ class gpu
     gl.useProgram(this.pnoise2ShaderProgram);
     
     gl.uniform1ui(this.pnoise2ShaderProgram.uniformLocations.u_octaves, octaves);
-    gl.uniform1f(this.pnoise2ShaderProgram.uniformLocations.u_frequency, persistence);
+    gl.uniform1f(this.pnoise2ShaderProgram.uniformLocations.u_frequency, frequency);
     gl.uniform1f(this.pnoise2ShaderProgram.uniformLocations.u_persistence, persistence);
     gl.uniform1f(this.pnoise2ShaderProgram.uniformLocations.u_lacunarity, lacunarity);
     gl.uniform1f(this.pnoise2ShaderProgram.uniformLocations.u_base, base);
@@ -612,6 +559,10 @@ class gpu
     this.canvas = document.createElement('canvas');
     this.gl = this.canvas.getContext('webgl2');
     
+    if (this.gl === null)
+    {
+      throw new Error("WebGL 2 not supported!");
+    }
     // TODO: Add verifications for webgl version.
     
     this.gl.getExtension('EXT_color_buffer_float');
@@ -627,15 +578,12 @@ class gpu
    */
   add(matrix_a, matrix_b, result = undefined)
   {
-    if (matrix_a.columns !== matrix_b.columns || matrix_a.rows !== matrix_b.rows || matrix_a.channels !== matrix_b.channels)
-    {
-      throw "Cannot add matrices of different shapes.";
-    }
+    assert(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot add matrices of different shapes.");
     
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix_a.columns;
+    let width = matrix_a.cols;
     let height = matrix_a.rows;
     
     gl.viewport(0, 0, width, height);
@@ -645,7 +593,7 @@ class gpu
       result = this.create_gpu_matrix();  
     }
     
-    result.allocate(width, height, matrix_a.channels);
+    result.allocate(width, height, matrix_a.channel);
     
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
@@ -679,15 +627,12 @@ class gpu
    */
   subtract(matrix_a, matrix_b, result = undefined)
   {
-    if (matrix_a.columns !== matrix_b.columns || matrix_a.rows !== matrix_b.rows || matrix_a.channels !== matrix_b.channels)
-    {
-      throw "Cannot subtract matrices of different shapes.";
-    }
+    assert(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot subtract matrices of different shapes.");
     
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix_a.columns;
+    let width = matrix_a.cols;
     let height = matrix_a.rows;
     
     gl.viewport(0, 0, width, height);
@@ -697,7 +642,7 @@ class gpu
       result = this.create_gpu_matrix();  
     }
     
-    result.allocate(width, height, matrix_a.channels);
+    result.allocate(width, height, matrix_a.channel);
     
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
@@ -731,15 +676,12 @@ class gpu
    */
   multiply_(matrix_a, matrix_b, result = undefined)
   {
-    if (matrix_a.columns !== matrix_b.columns || matrix_a.rows !== matrix_b.rows || matrix_a.channels !== matrix_b.channels)
-    {
-      throw "Cannot multiply matrices of different shapes.";
-    }
+    assert(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot multiply matrices of different shapes.");
     
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix_a.columns;
+    let width = matrix_a.cols;
     let height = matrix_a.rows;
     
     gl.viewport(0, 0, width, height);
@@ -749,7 +691,7 @@ class gpu
       result = this.create_gpu_matrix();  
     }
     
-    result.allocate(width, height, matrix_a.channels);
+    result.allocate(width, height, matrix_a.channel);
     
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
@@ -786,7 +728,7 @@ class gpu
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix_a.columns;
+    let width = matrix_a.cols;
     let height = matrix_a.rows;
     
     gl.viewport(0, 0, width, height);
@@ -796,7 +738,7 @@ class gpu
       result = this.create_gpu_matrix();  
     }
     
-    result.allocate(width, height, matrix_a.channels);
+    result.allocate(width, height, matrix_a.channel);
     
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
@@ -848,7 +790,7 @@ class gpu
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix_a.columns;
+    let width = matrix_a.cols;
     let height = matrix_a.rows;
     
     gl.viewport(0, 0, width, height);
@@ -858,7 +800,7 @@ class gpu
       result = this.create_gpu_matrix();  
     }
     
-    result.allocate(width, height, matrix_a.channels);
+    result.allocate(width, height, matrix_a.channel);
     
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
@@ -882,18 +824,18 @@ class gpu
   }
 
   /**
-   * @param matrix_a {gpu_matrix}
+   * @param matrix {gpu_matrix}
    * @param value {number}
    * @param alpha {number}
    * @param result {gpu_matrix}
    * @returns {gpu_matrix}
    */
-  normalMap(matrix, alpha = 1.0, result = undefined)
+  normalMap(matrix, alpha = 0.0003, result = undefined)
   {
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix.columns;
+    let width = matrix.cols;
     let height = matrix.rows;
     
     gl.viewport(0, 0, width, height);
@@ -903,7 +845,7 @@ class gpu
       result = this.create_gpu_matrix();  
     }
     
-    result.allocate(width, height, 4);
+    result.allocate(width, height, 4, jsfeat.U8_t);
     
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, matrix.texture);
@@ -1014,6 +956,20 @@ class gpu
  
     Object.defineProperty(this, "magnitudeShaderProgram", { value: this._magnitudeShaderProgram, configurable: true });
     return this._magnitudeShaderProgram;
+  }  
+
+  get realShaderProgram()
+  {
+    //DEBUG console.log("Initializing magnitudeShaderProgram");
+
+    /** @type {WebGL2RenderingContext} */ 
+    let gl = this.gl;
+    let fShader = this._compile_shader(fs_real, gl.FRAGMENT_SHADER);
+    this._realShaderProgram = this._create_shader_program(this.vertexShader, fShader);
+    gl.deleteShader(fShader);
+ 
+    Object.defineProperty(this, "realShaderProgram", { value: this._realShaderProgram, configurable: true });
+    return this._realShaderProgram;
   }
   
   get whiteNoiseShaderProgram()
@@ -1214,13 +1170,12 @@ class gpu
     
     var log = gl.getShaderInfoLog(shader);
     var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-    if (!success)
+
+    assert(success, "WebGL Shader Compilation Error: \n" + log);
+
+    if (log.length > 0)
     {
-      throw "WebGL Shader Compilation Error: \n" + log;
-    }
-    else if (log.length > 0)
-    {
-      console.log("WebGL Shader Compilation Warning: \n" + log);
+      console.warn("WebGL Shader Compilation Warning: \n" + log);
     }
     
     return shader;
@@ -1245,13 +1200,11 @@ class gpu
     
     var log = gl.getProgramInfoLog(program);
     var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-    if (!success)
+    assert(success, "WebGL Program Linking Error: \n" + log);
+    
+    if (log.length > 0)
     {
-      throw "WebGL Program Linking Error: \n" + log;
-    }
-    else if (log.length > 0)
-    {
-      console.log("WebGL Program Linking Warning: \n" + log);
+      console.warn("WebGL Program Linking Warning: \n" + log);
     }
     
     program.uniformLocations = {};

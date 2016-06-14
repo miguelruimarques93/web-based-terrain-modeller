@@ -54,7 +54,7 @@ function element_wise_operation(op) {
     var size = A.cols * A.rows;
     
     if (typeof B === 'number') {
-      for (var i = 0; i < size; ++i)
+      for (let i = 0; i < size; ++i)
       {
         c_buffer[i] = op(a_buffer[i], B);
       }  
@@ -65,7 +65,7 @@ function element_wise_operation(op) {
       }
       
       var b_buffer = get_buffer(B);
-      for (var i = 0; i < b_buffer.length; ++i)
+      for (let i = 0; i < b_buffer.length; ++i)
       {
         c_buffer[i] = op(a_buffer[i], b_buffer[i]);
       }  
@@ -319,14 +319,14 @@ class EditorController {
 
     if (normal_map === undefined)
     {
-      this.normalmapGenerator.from_heightmap(data_mat, 0.1).then(((nmap) => {
+      this.normalmapGenerator.from_heightmap_gpu(data_mat).then(((nmap) => {
         this.surface_material.normalMap = new THREE.Texture(new THREE.DataTexture(nmap, nmap.cols, nmap.rows, THREE.RGBAFormat));
         this.images.push(create_canvas_from_matrix(nmap));
       }).bind(this), () => {});
     }
     else
     {
-      let normal_map_rgba = new jsfeat.matrix_t(normal_map.cols, normal_map.rows, jsfeat.U8C4_t);
+      /*let normal_map_rgba = new jsfeat.matrix_t(normal_map.cols, normal_map.rows, jsfeat.U8C4_t);
       
       let float_array = normal_map.buffer.f32;
       let u8c4_array = normal_map_rgba.buffer.u8;
@@ -340,13 +340,12 @@ class EditorController {
         u8c4_array[j+1] = 255 * (float_array[i+1] + 1) / 2;
         u8c4_array[j+2] = 255 * (float_array[i+2] + 1) / 2;
         u8c4_array[j+3] = 255;
-      }
+      }*/
 
-      this.images.push(create_canvas_from_matrix(normal_map_rgba));
-      this.surface_material.normalMap = new THREE.Texture(new THREE.DataTexture(u8c4_array, normal_map_rgba.cols, normal_map_rgba.rows, THREE.RGBAFormat));
+      this.images.push(create_canvas_from_matrix(normal_map));
+      this.surface_material.normalMap = new THREE.Texture(new THREE.DataTexture(normal_map.data, normal_map.cols, normal_map.rows, THREE.RGBAFormat));
     }
-    
-    
+        
     var data = get_buffer(data_mat);
     var geometry = new THREE.PlaneBufferGeometry(data_mat.cols, data_mat.rows, data_mat.cols - 1, data_mat.rows - 1);
     var vertices = geometry.attributes.position.array;
@@ -536,7 +535,7 @@ class EditorController {
     let g_detailed = gpu.add(g_deterministic, g_scaled_random_details);
     let g_normalized_detailed = gpu.normalize(g_detailed);
     let g_result = gpu.multiply(g_normalized_detailed, 255);
-    let g_normal_map = gpu.normalMap(g_result);
+    let g_normal_map = gpu.normalMap(g_result, 0.5);
 
     random_mat = g_result.download();
     let normal_map = g_normal_map.download();

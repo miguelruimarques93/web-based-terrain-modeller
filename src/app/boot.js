@@ -11,8 +11,6 @@ import leafletDirective from 'angular-leaflet-directive';
 
 import appComponent from './app';
 
-import { LogDecorator, ExternalLogger } from './utils/LogDecorator';
-
 /**
  * Manually bootstrap the application when AngularJS and
  * the application classes have been loaded.
@@ -22,10 +20,7 @@ angular
   .ready( () => {
     
     let appName = 'web-based-terrain-modeller';
-    let $log = new ExternalLogger();
-    
-    $log = $log.getInstance("BOOTSTRAP");
-    $log.debug( `Initializing ${appName}`);
+    console.log( `Initializing ${appName}`);
     
     let body = document.getElementsByTagName("body");
     
@@ -40,7 +35,6 @@ angular
         'filereader',
         appComponent
       ])
-      .config(LogDecorator)
       .config($mdThemingProvider => {
         $mdThemingProvider.theme('default').primaryPalette('teal');
       });

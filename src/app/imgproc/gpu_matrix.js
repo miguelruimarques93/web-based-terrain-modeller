@@ -1,11 +1,14 @@
+import assert from '../utils/assert';
+import { isPowerOf2 } from '../utils/math_utils';
+
 import jsfeat from 'jsfeat';
 import _ from 'underscore';
 
 /**
  * Class gpu_matrix
- * @property {number} columns
+ * @property {number} cols
  * @property {number} rows
- * @property {number} channels
+ * @property {number} channel
  * @property {WebGLTexture} texture
  * @property {WebGLFramebuffer} framebuffer
  * @property {WebGL2RenderingContext} gl
@@ -38,13 +41,18 @@ class gpu_matrix {
   
   /**
    * Allocate an empty gpu_matrix.
-   * @param {number} columns  
+   * @param {number} cols  
    * @param {number} rows
-   * @param {number} channels 
+   * @param {number} channel 
+   * @param {jsfeat.DataType} type
    * @param {gpu_matrix~WebGLTextureOptions} options 
    */
-  allocate(columns, rows, channels, options = {}) 
+  allocate(cols, rows, channel, type = jsfeat.F32_t, options = {}) 
   {
+    type = jsfeat.get_data_type(type);
+
+    this._throw_if_now_allowed(cols, rows, channel, type);
+
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
@@ -52,9 +60,10 @@ class gpu_matrix {
 
     if (!_.has(this, "texture")) 
     {
-      this.columns = columns;
+      this.cols = cols;
       this.rows = rows;
-      this.channels = channels;
+      this.channel = channel;
+      this.type = type;
       this._createTexture();
       this.setTextureParameters(options);
       
@@ -66,13 +75,14 @@ class gpu_matrix {
     {
       gl.bindTexture(gl.TEXTURE_2D, this.texture);
       
-      if (this.columns != columns || this.rows != rows || this.channels != channels) 
+      if (this.cols != cols || this.rows != rows || this.channel != channel || this.type != type) 
       {
         // Data type has changed. Re-initialization needed
-        this.columns = columns;
+        this.cols = cols;
         this.rows = rows;
-        this.channels = channels;
-        gl.texImage2D(gl.TEXTURE_2D, 0, this._get_gl_internal_format(), this.columns, this.rows, 0, this._get_gl_format(), gl.FLOAT, null);
+        this.channel = channel;
+        this.type = type;
+        gl.texImage2D(gl.TEXTURE_2D, 0, this._get_gl_internal_format(), this.cols, this.rows, 0, this._get_gl_format(), this._get_gl_type(), null);
       }
       
       gl.bindTexture(gl.TEXTURE_2D, null);
@@ -135,10 +145,7 @@ class gpu_matrix {
    */
   upload(matrix, options = {})
   {
-    if (matrix.type != jsfeat.F32_t)
-    {
-      throw "gpu_matrix error: matrix with type different from F32 not implemented.";
-    }
+    this._throw_if_now_allowed(matrix.cols, matrix.rows, matrix.channel, matrix.type);
     
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
@@ -147,10 +154,11 @@ class gpu_matrix {
 
     if (!_.has(this, "texture"))
     {
-      this.columns = matrix.cols;
+      this.cols = matrix.cols;
       this.rows = matrix.rows;
-      this.channels = matrix.channel;
-      this._createTexture(matrix.buffer.f32);
+      this.channel = matrix.channel;
+      this.type = matrix.type;
+      this._createTexture(matrix.data);
       this.setTextureParameters(options);
       
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
@@ -161,18 +169,18 @@ class gpu_matrix {
     {
       gl.bindTexture(gl.TEXTURE_2D, this.texture);
       
-      if (this.columns != matrix.cols || this.rows != matrix.rows || this.channels != matrix.channel) 
+      if (this.cols != matrix.cols || this.rows != matrix.rows || this.channel != matrix.channel || this.type != matrix.type) 
       {
         // Data type has changed. Re-initialization needed
-        this.columns = matrix.cols;
+        this.cols = matrix.cols;
         this.rows = matrix.rows;
-        this.channels = matrix.channel;
-        gl.texImage2D(gl.TEXTURE_2D, 0, this._get_gl_internal_format(), this.columns, this.rows, 0, this._get_gl_format(), gl.FLOAT, matrix.buffer.f32);
+        this.channel = matrix.channel;
+        gl.texImage2D(gl.TEXTURE_2D, 0, this._get_gl_internal_format(), this.cols, this.rows, 0, this._get_gl_format(), this._get_gl_type(), matrix.data);
       }
       else
       {
         // Data type is the same. Just re-upload the data.
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.columns, this.rows, this._get_gl_format(), gl.FLOAT, matrix.buffer.f32);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.cols, this.rows, this._get_gl_format(), this._get_gl_type(), matrix.data);
       }
       
       gl.bindTexture(gl.TEXTURE_2D, null);
@@ -191,30 +199,57 @@ class gpu_matrix {
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
-    var result = new jsfeat.matrix_t(this.columns, this.rows, jsfeat.F32_t | this.channels);
-    var pixels = result.buffer.f32;
+    var result = new jsfeat.matrix_t(this.cols, this.rows, this.type | this.channel);
     
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.framebuffer);
-    gl.readPixels(0, 0, this.columns, this.rows, this._get_gl_format(), gl.FLOAT, pixels);
+    gl.readPixels(0, 0, this.cols, this.rows, this._get_gl_format(), this._get_gl_type(), result.data);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
     
     return result;
   }
   
-  
+  /**
+   * @private
+   * @param {number} width
+   * @param {number} height
+   * @param {number} channel
+   * @param {DataType} type
+   * @throws
+   */
+  _throw_if_now_allowed(width, height, channel, type)
+  {
+    assert(this._is_allowed_size(width, height), "gpu_matrix: invalid size.");
+    assert(this._is_allowed_type(type), "gpu_matrix: invalid type.");
+    assert(this._is_allowed_channel(channel), "gpu_matrix: invalid number of channel.");
+  }
+
   /**
    * @private
    * @return {number} The WebGL Format
    */
   _get_gl_format()
   {
-    switch (this.channels)
+    switch (this.type)
     {
-      case 1: return this.gl.RED;
-      case 2: return this.gl.RG;
-      case 3: return this.gl.RGB;
-      case 4: return this.gl.RGBA;
+      case jsfeat.U8_t:
+      case jsfeat.S32_t:
+        switch (this.channel)
+          {
+            case 1: return this.gl.RED_INTEGER;
+            case 2: return this.gl.RG_INTEGER;
+            case 4: return this.gl.RGBA_INTEGER;
+          }
+          break;
+      case jsfeat.F32_t:
+        switch (this.channel)
+        {
+          case 1: return this.gl.RED;
+          case 2: return this.gl.RG;
+          case 4: return this.gl.RGBA;
+        }
+        break;
     }
+    throw "Invalid gpu_matrix format.";
   }
   
   
@@ -224,19 +259,89 @@ class gpu_matrix {
    */
   _get_gl_internal_format()
   {
-    switch (this.channels)
+    switch (this.type)
     {
-      case 1: return this.gl.R32F;
-      case 2: return this.gl.RG32F;
-      case 3: return this.gl.RGB32F;
-      case 4: return this.gl.RGBA32F;
+      case jsfeat.U8_t:
+        switch (this.channel)
+        {
+          case 1: return this.gl.R8UI;
+          case 2: return this.gl.RG8UI;
+          case 4: return this.gl.RGBA8UI;
+        }
+        break;
+      case jsfeat.S32_t:
+        switch (this.channel)
+        {
+          case 1: return this.gl.R32I;
+          case 2: return this.gl.RG32I;
+          case 4: return this.gl.RGBA32I;
+        }
+        break;
+      case jsfeat.F32_t:
+        switch (this.channel)
+        {
+          case 1: return this.gl.R32F;
+          case 2: return this.gl.RG32F;
+          case 4: return this.gl.RGBA32F;
+        }
+        break;
     }
+
+    throw "Invalid gpu_matrix format.";
   }
-  
   
   /**
    * @private
-   * @param {Float32Array} data 
+   * @return {number} The WebGL Type
+   */
+  _get_gl_type()
+  {
+    switch (this.type)
+    {
+      case jsfeat.U8_t: return this.gl.UNSIGNED_BYTE;
+      case jsfeat.S32_t: return this.gl.INT;
+      case jsfeat.F32_t: return this.gl.FLOAT;
+    }
+
+    throw "Invalid gpu_matrix type.";
+  }
+  
+  /**
+   * @private
+   * @param {jsfeat.DataType} type
+   * @return {Boolean} True if type is allowed, False otherwise
+   */
+  _is_allowed_type(type)
+  {
+    type = jsfeat.get_data_type(type);
+    return type == jsfeat.U8_t || type == jsfeat.S32_t || type == jsfeat.F32_t;
+  }
+
+  /**
+   * @private
+   * @param {number} channel
+   * @return {Boolean} True if type is allowed, False otherwise
+   */
+  _is_allowed_channel(channel)
+  {
+    return channel == 1 || channel == 2 || channel == 4;
+  }
+
+  /**
+   * @private
+   * @param {number} width
+   * @param {number} height
+   * @return {Boolean} True if type is allowed, False otherwise
+   */
+  _is_allowed_size(width, height)
+  {
+    return isPowerOf2(width)  && width  <= 4096 &&
+           isPowerOf2(height) && height <= 4096;
+  }
+
+  /**
+   * @private
+   * @param {Uint8Array | Int32Array | Float32Array} data 
    */
   _createTexture(data = null)
   {
@@ -247,7 +352,7 @@ class gpu_matrix {
 
     this.texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, this._get_gl_internal_format(), this.columns, this.rows, 0, this._get_gl_format(), gl.FLOAT, data);
+    gl.texImage2D(gl.TEXTURE_2D, 0, this._get_gl_internal_format(), this.cols, this.rows, 0, this._get_gl_format(), this._get_gl_type(), data);
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
 }

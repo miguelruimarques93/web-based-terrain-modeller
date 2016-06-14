@@ -1,26 +1,9 @@
 import jsfeat from 'jsfeat';
 
-/**
- * @param mat {jsfeat.matrix_t}
- */
-function get_buffer(mat) {
-  switch (jsfeat.get_data_type(mat.type)) {
-    case jsfeat.U8_t:
-      return mat.buffer.u8;
-    case jsfeat.S32_t: 
-      return mat.buffer.i32;
-    case jsfeat.F32_t: 
-      return mat.buffer.f32;
-    case jsfeat.S64_t: 
-      throw "Invalid type.";
-    case jsfeat.F64_t: 
-      return mat.buffer.f64;
-  }
-}
-
 class NormalmapGeneratorService {  
-  constructor($q) {
+  constructor($q, gpu) {
     this.$q = $q;
+    this.gpu = gpu;
     
     console.log( `Initializing NormalmapGeneratorService`);
   }
@@ -41,10 +24,10 @@ class NormalmapGeneratorService {
       var width = heightmap_mat.cols;
       var height = heightmap_mat.rows;
       
-      var height_buffer = get_buffer(heightmap_mat);
+      var height_buffer = heightmap_mat.data;
       var size_height = height_buffer.length;
       
-      var normal_buffer = get_buffer(normalmap);
+      var normal_buffer = normalmap.data;
       var size_normal = normal_buffer.length;
       
       for (var i = 0, j = 0; i < size_normal && j < size_height; i += 3, ++j)
@@ -81,31 +64,29 @@ class NormalmapGeneratorService {
       }
       
       resolve(normalmap);
-      
-      /*
-      var gradient = new jsfeat.matrix_t(heightmap_mat.cols, heightmap_mat.rows, heightmap_mat.type | jsfeat.C2_t);
-      jsfeat.imgproc.sobel_derivatives(heightmap_mat, gradient);
-      
-      
-      
-      var z = 1 / strength;
-      
-      var gradient_buffer = get_buffer(gradient);
-      var size_gradient = gradient_buffer.length;
-      
-      var normal_buffer = get_buffer(normalmap);
-      var size_normal = normal_buffer.length;
-      
-      for (var i = 0, j = 0; i < size_gradient && j < size_normal; i += 2, j += 3) {
-        var magnitude = Math.sqrt(Math.pow(gradient_buffer[i], 2) + Math.pow(gradient_buffer[i+1], 2) + Math.pow(z, 2));
-        normal_buffer[j] = gradient_buffer[i] / magnitude;
-        normal_buffer[j+1] = gradient_buffer[i+1] / magnitude;
-        normal_buffer[j+2] = z / magnitude;
-      }
-      
-      resolve(normalmap);
-      */
     });
+  } 
+
+  from_heightmap_gpu(heightmap_mat, strength) {
+    if (heightmap_mat.channel != jsfeat.C1_t) {
+      throw "Heightmap needs to be only one channel.";
+    }
+    
+    return this.$q(((resolve, reject) => {
+      
+      /** @type {gpu}  */
+      let gpu = this.gpu;
+
+      let g_heightmap = gpu.create_gpu_matrix(heightmap_mat);
+      let g_normalmap = gpu.normalMap(g_heightmap, strength);
+
+      let result = g_normalmap.download();
+
+      g_heightmap.destroy();
+      g_normalmap.destroy();
+
+      resolve(result);
+    }).bind(this));
   } 
   
 }

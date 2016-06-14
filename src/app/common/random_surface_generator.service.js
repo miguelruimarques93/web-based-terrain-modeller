@@ -4,33 +4,6 @@ import gpu_matrix from '../imgproc/gpu_matrix';
 
 import { FFT, FrequencyFilter } from 'FFT';
 
-/**
- * @param {jsfeat.matrix_t} matrix
- */
-function normalize(matrix, mult = 255) {
-  var buffer = matrix.buffer.f32; // FIXME
-  var max = new Array(matrix.channel);
-  var min = new Array(matrix.channel);
-
-  for (var c = 0; c < matrix.channel; ++c) {
-    max[c] = buffer[c];
-    min[c] = buffer[c];
-  }
-
-  for (var i = 0; i < buffer.length; i += matrix.channel) {
-    for (var c = 0; c < matrix.channel; ++c) {
-      max[c] = Math.max(max[c], buffer[i + c]);
-      min[c] = Math.min(min[c], buffer[i + c]);
-    }
-  }
-
-  for (var i = 0; i < buffer.length; i += matrix.channel) {
-    for (var c = 0; c < matrix.channel; ++c) {
-      buffer[i + c] = (buffer[i + c] - min[c]) / (max[c] - min[c]) * mult;
-    }
-  }
-}
-
 function noise2(noise_func) {
   return (x, y, octaves, persistence, lacunarity, base) => {
     // Commented for performance reasons
@@ -96,11 +69,13 @@ class RandomSurfaceGeneratorService {
       let gpu = this.gpu;
 
       let gpu_mat = gpu.perlin_noise(width, height, frequency, octaves, persistence, lacunarity, base);
+      let g_normalized = gpu.normalize(gpu_mat);
+      gpu.multiply(g_normalized, 255, gpu_mat);
 
       let result = gpu_mat.download();
 
-      normalize(result);
       gpu_mat.destroy();
+      g_normalized.destroy();
 
       resolve(result);
     });
@@ -132,12 +107,13 @@ class RandomSurfaceGeneratorService {
       let gpu = this.gpu;
 
       let gpu_mat = gpu.simplex_noise(width, height, frequency, octaves, persistence, lacunarity, base);
+      let g_normalized = gpu.normalize(gpu_mat);
+      gpu.multiply(g_normalized, 255, gpu_mat);
 
       let result = gpu_mat.download();
 
-      normalize(result);
-
       gpu_mat.destroy();
+      g_normalized.destroy();
 
       resolve(result);
     });
@@ -154,14 +130,13 @@ class RandomSurfaceGeneratorService {
       gpu.fPowerMinusBeta(gpu_mat_2, power, gpu_mat_1);
       gpu.compute_fft(gpu_mat_1, false, gpu_mat_2);
 
-      let isResultInGPU = gpu_mat_2 instanceof gpu_matrix;
+      gpu.normalize(gpu_mat_2, gpu_mat_1);
+      gpu.multiply(gpu_mat_1, 255, gpu_mat_2);
 
-      var result = isResultInGPU ? gpu_mat_2.download() : gpu_mat_2;
+      var result = gpu_mat_2.download();
 
       gpu_mat_1.destroy();
       gpu_mat_2.destroy();
-
-      normalize(result);
 
       resolve(result);
     });
