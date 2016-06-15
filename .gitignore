@@ -6,3 +6,4 @@ _*.js
 /typings
 /docs
 _shaders
+.idea
