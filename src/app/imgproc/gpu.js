@@ -1,6 +1,9 @@
 import assert from '../utils/assert';
 import { randomUInt } from '../utils/math_utils';
 import { setProperty } from '../utils/utils';
+import _ from 'underscore';
+
+import jsfeat from 'jsfeat';
 
 import gpu_matrix from './gpu_matrix';
 
@@ -23,6 +26,7 @@ import fs_multiply from './_shaders/multiply.fs!text';
 import fs_multiply_im from './_shaders/multiply_im.fs!text';
 import fs_divide_im from './_shaders/divide_im.fs!text';
 import fs_normal_map from './_shaders/normal_map.fs!text';
+import fs_type_conversion from './_shaders/type_conversions.fs!text';
 
 /**
  * GPU class
@@ -63,17 +67,26 @@ class gpu
    */
   compute_fft(matrix, forward = true, result = undefined)
   {
-    assert(matrix.type == jsfeat.F32_t, "FFT: matrix must contain floats.");
+    let innerMatrix = matrix;
+    let destroyInnerMatrix = false;
+
     if (!forward) 
-      assert(matrix.channel == 2, "IFFT: matrix must contain complex numbers.");
-    else
+      assert(matrix.type == jsfeat.F32_t && matrix.channel == 2, "IFFT: matrix must contain complex numbers.");
+    else {
       assert(matrix.channel <= 2, "FFT: matrix must not have more than 2 channel.");
+      if (matrix.type != jsfeat.F32_t) {
+        console.warn("compute_fft: Given matrix is not of type f32. Converting...");
+        // Convert matrix to F32_t
+        innerMatrix = this.convert_to(matrix, jsfeat.F32_t);
+        destroyInnerMatrix = true;
+      }
+    }
 
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
-    let width = matrix.cols;
-    let height = matrix.rows;
+    let width = innerMatrix.cols;
+    let height = innerMatrix.rows;
     
     gl.viewport(0, 0, width, height);
     
@@ -87,11 +100,11 @@ class gpu
     pingTransform.allocate(width, height, 2);
     pongTransform.allocate(width, height, 2);
     result.allocate(width, height, forward ? 2 : 1);
-    
-    matrix.setTextureParameters({ filter: gl.NEAREST, wrap: gl.REAPEAT});
+
+    innerMatrix.setTextureParameters({ filter: gl.NEAREST, wrap: gl.REAPEAT});
     
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, matrix.texture);
+    gl.bindTexture(gl.TEXTURE_2D, innerMatrix.texture);
     
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, pingTransform.texture);
@@ -207,6 +220,8 @@ class gpu
     
     pingTransform.destroy();
     pongTransform.destroy();
+    if (destroyInnerMatrix)
+      innerMatrix.destroy();
     
     return result;
   }
@@ -830,13 +845,20 @@ class gpu
    * @param result {gpu_matrix}
    * @returns {gpu_matrix}
    */
-  normalMap(matrix, alpha = 0.0003, result = undefined)
+  normalMap(matrix, alpha = 0.01, result = undefined)
   {
+    let innerMatrix = matrix;
+    let destroyInnerMatrix = false;
+    if (matrix.type != jsfeat.U8_t) {
+      innerMatrix = this.convert_to(matrix, jsfeat.U8_t);
+      destroyInnerMatrix = true;
+    }
+
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
-    let width = matrix.cols;
-    let height = matrix.rows;
+    let width = innerMatrix.cols * 2;
+    let height = innerMatrix.rows * 2;
     
     gl.viewport(0, 0, width, height);
     
@@ -848,7 +870,7 @@ class gpu
     result.allocate(width, height, 4, jsfeat.U8_t);
     
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, matrix.texture);
+    gl.bindTexture(gl.TEXTURE_2D, innerMatrix.texture);
     
     gl.bindVertexArray(this.vertexArray);
     
@@ -862,6 +884,98 @@ class gpu
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
     
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    gl.bindVertexArray(null);
+
+    if (destroyInnerMatrix)
+      innerMatrix.destroy();
+
+    return result;
+  }
+
+  /**
+   * @private
+   * @param from {jsfeat.DataType}
+   * @param to {jsfeat.DataType}
+   * @returns {WebGLProgram}
+   */
+  _get_convertion_shader(from, to)
+  {
+    switch (from)
+    {
+      case jsfeat.U8_t:
+        switch (to)
+        {
+          case jsfeat.F32_t:
+            return this.u8ToF32ShaderProgram;
+          case jsfeat.S32_t:
+            return this.u8ToI32ShaderProgram;
+        }
+        break;
+      case jsfeat.F32_t:
+        switch (to)
+        {
+          case jsfeat.U8_t:
+            return this.f32ToU8ShaderProgram;
+          case jsfeat.S32_t:
+            return this.f32ToI32ShaderProgram;
+        }
+        break;
+      case jsfeat.S32_t:
+        switch (to)
+        {
+          case jsfeat.U8_t:
+            return this.i32ToU8ShaderProgram;
+          case jsfeat.F32_t:
+            return this.i32ToF32ShaderProgram;
+        }
+        break;
+    }
+
+    assert(false, "Invalid conversion src or target.");
+  }
+
+  /**
+   * @param matrix {gpu_matrix}
+   * @param result {gpu_matrix}
+   * @param type {jsfeat.DataType}
+   * @returns {gpu_matrix}
+   */
+  convert_to(matrix, type, result = undefined)
+  {
+    assert(matrix.type != type, "convert_to: Cannot convert matrix to original type.");
+
+    let shaderProgram = this._get_convertion_shader(matrix.type, type);
+
+    /** @type {WebGL2RenderingContext} */
+    let gl = this.gl;
+
+    let width = matrix.cols;
+    let height = matrix.rows;
+
+    gl.viewport(0, 0, width, height);
+
+    if (result === undefined)
+    {
+      result = this.create_gpu_matrix();
+    }
+
+    result.allocate(width, height, matrix.channel, type);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, matrix.texture);
+
+    gl.bindVertexArray(this.vertexArray);
+
+    gl.useProgram(shaderProgram);
+
+    gl.uniform2f(shaderProgram.uniformLocations.u_transformSize, width, height);
+    gl.uniform1i(shaderProgram.uniformLocations.u_input, 0);
+
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, result.framebuffer);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     gl.bindVertexArray(null);
 
@@ -881,7 +995,7 @@ class gpu
     //DEBUG console.log("Initializing horizontalFFTShaderProgram");
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
-    let fShader = this._compile_shader(this._shader_inject_definition('HORIZONTAL', fs_fft), gl.FRAGMENT_SHADER);
+    let fShader = this._compile_shader(this._shader_inject_definition(['HORIZONTAL'], fs_fft), gl.FRAGMENT_SHADER);
     this._horizontalFFTShaderProgram = this._create_shader_program(this.vertexShader, fShader);
     gl.deleteShader(fShader);
  
@@ -1140,16 +1254,102 @@ class gpu
     return this._normalMapShaderProgram;
   }
 
+  get f32ToU8ShaderProgram()
+  {
+    //DEBUG console.log("Initializing divideImShaderProgram");
+
+    /** @type {WebGL2RenderingContext} */
+    let gl = this.gl;
+    let fShader = this._compile_shader(this._shader_inject_definition(['I_F32', 'O_U8'], fs_type_conversion), gl.FRAGMENT_SHADER);
+    //let fShader = this._compile_shader(fs_type_conversion, gl.FRAGMENT_SHADER);
+    this._f32ToU8ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
+    gl.deleteShader(fShader);
+
+    Object.defineProperty(this, "f32ToU8ShaderProgram", { value: this._f32ToU8ShaderProgram, configurable: true });
+    return this._f32ToU8ShaderProgram;
+  }
+
+  get f32ToI32ShaderProgram()
+  {
+    //DEBUG console.log("Initializing divideImShaderProgram");
+
+    /** @type {WebGL2RenderingContext} */
+    let gl = this.gl;
+    let fShader = this._compile_shader(this._shader_inject_definition(['I_F32', 'O_I32'], fs_type_conversion), gl.FRAGMENT_SHADER);
+    this._f32ToI32ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
+    gl.deleteShader(fShader);
+
+    Object.defineProperty(this, "f32ToI32ShaderProgram", { value: this._f32ToI32ShaderProgram, configurable: true });
+    return this._f32ToI32ShaderProgram;
+  }
+
+  get u8ToF32ShaderProgram()
+  {
+    //DEBUG console.log("Initializing divideImShaderProgram");
+
+    /** @type {WebGL2RenderingContext} */
+    let gl = this.gl;
+    let fShader = this._compile_shader(this._shader_inject_definition(['I_U8', 'O_F32'], fs_type_conversion), gl.FRAGMENT_SHADER);
+    this._u8ToF32ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
+    gl.deleteShader(fShader);
+
+    Object.defineProperty(this, "u8ToF32ShaderProgram", { value: this._u8ToF32ShaderProgram, configurable: true });
+    return this._u8ToF32ShaderProgram;
+  }
+
+  get u8ToI32ShaderProgram()
+  {
+    //DEBUG console.log("Initializing divideImShaderProgram");
+
+    /** @type {WebGL2RenderingContext} */
+    let gl = this.gl;
+    let fShader = this._compile_shader(this._shader_inject_definition(['I_U8', 'O_I32'], fs_type_conversion), gl.FRAGMENT_SHADER);
+    this._u8ToI32ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
+    gl.deleteShader(fShader);
+
+    Object.defineProperty(this, "u8ToI32ShaderProgram", { value: this._u8ToI32ShaderProgram, configurable: true });
+    return this._u8ToI32ShaderProgram;
+  }
+
+  get i32ToF32ShaderProgram()
+  {
+    //DEBUG console.log("Initializing divideImShaderProgram");
+
+    /** @type {WebGL2RenderingContext} */
+    let gl = this.gl;
+    let fShader = this._compile_shader(this._shader_inject_definition(['I_I32', 'O_F32'], fs_type_conversion), gl.FRAGMENT_SHADER);
+    this._i32ToF32ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
+    gl.deleteShader(fShader);
+
+    Object.defineProperty(this, "i32ToF32ShaderProgram", { value: this._i32ToF32ShaderProgram, configurable: true });
+    return this._i32ToF32ShaderProgram;
+  }
+
+  get i32ToU8ShaderProgram()
+  {
+    //DEBUG console.log("Initializing divideImShaderProgram");
+
+    /** @type {WebGL2RenderingContext} */
+    let gl = this.gl;
+    let fShader = this._compile_shader(this._shader_inject_definition(['I_I32', 'O_U8'], fs_type_conversion), gl.FRAGMENT_SHADER);
+    this._i32ToU8ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
+    gl.deleteShader(fShader);
+
+    Object.defineProperty(this, "i32ToU8ShaderProgram", { value: this._i32ToU8ShaderProgram, configurable: true });
+    return this._i32ToU8ShaderProgram;
+  }
+
   /**
    * @private
-   * @param definition {string}
+   * @param definitions {Array<string>}
    * @param shaderSource {string}
    * @return {string}
    */
-  _shader_inject_definition(definition, shaderSource)
+  _shader_inject_definition(definitions, shaderSource)
   {
     const placeholder = '/* inject:defines */';
-    return shaderSource.replace(placeholder, `#define ${definition}`);
+    let replacement = _.reduce(_.map(definitions, definition => `#define ${definition}`), (ac, elem) => `${ac}\n${elem}`);
+    return shaderSource.replace(placeholder, replacement);
   }
   
   /**
