@@ -184,7 +184,21 @@ function create_canvas_from_matrix_normal(src) {
 }
 
 class EditorController {
-  
+
+  /**
+   *
+   * @param $mdDialog
+   * @param $element
+   * @param $timeout
+   * @param FileReader
+   * @param $scope
+   * @param $mdMenu
+   * @param $q
+   * @param {HeightmapReaderService} heightmapReader
+   * @param {NormalmapGeneratorService} normalmapGenerator
+   * @param randomSurfaceGenerator
+   * @param gpu
+   */
   constructor($mdDialog, $element, $timeout, FileReader, $scope, $mdMenu, $q, heightmapReader, normalmapGenerator, randomSurfaceGenerator, gpu) {
     this.mdDialog = $mdDialog;
     this.FileReader = FileReader;
@@ -309,7 +323,7 @@ class EditorController {
    * @param {jsfeat.matrix_t} data_mat
    * @param {jsfeat.matrix_t} normal_map
    */
-  set_surface(data_mat, normal_map) {
+  set_surface(data_mat, normal_map = undefined) {
     
     if (_.has(this, 'plane')) {
       this.scene.remove(this.plane);
@@ -326,27 +340,11 @@ class EditorController {
     }
     else
     {
-      /*let normal_map_rgba = new jsfeat.matrix_t(normal_map.cols, normal_map.rows, jsfeat.U8C4_t);
-      
-      let float_array = normal_map.buffer.f32;
-      let u8c4_array = normal_map_rgba.buffer.u8;
-      
-      let f_size = normal_map.cols * normal_map.rows * normal_map.channel;
-      let u8c4_size = normal_map_rgba.cols * normal_map_rgba.rows *  normal_map_rgba.channel;
-
-      for (let i = 0, j = 0; i < f_size && j < u8c4_size; i += normal_map.channel, j+= normal_map_rgba.channel)
-      {
-        u8c4_array[j] = 255 * (float_array[i] + 1) / 2;
-        u8c4_array[j+1] = 255 * (float_array[i+1] + 1) / 2;
-        u8c4_array[j+2] = 255 * (float_array[i+2] + 1) / 2;
-        u8c4_array[j+3] = 255;
-      }*/
-
       this.images.push(create_canvas_from_matrix(normal_map));
       this.surface_material.normalMap = new THREE.Texture(new THREE.DataTexture(normal_map.data, normal_map.cols, normal_map.rows, THREE.RGBAFormat));
     }
         
-    var data = get_buffer(data_mat);
+    var data = data_mat.data;
     var geometry = new THREE.PlaneBufferGeometry(data_mat.cols, data_mat.rows, data_mat.cols - 1, data_mat.rows - 1);
     var vertices = geometry.attributes.position.array;
     for (var i = 0, j = 0; i < vertices.length; ++i, j += 3) {
@@ -363,7 +361,7 @@ class EditorController {
   
   openFile(file) {
     if (file !== null) {
-      this.heightmapReader.from_file(file, this.$scope).then(((data_mat) => {
+      this.heightmapReader.from_file(file, this.$scope).then((data_mat => {
         this.deterministic_mat = data_mat;
 
         this.set_surface(this.deterministic_mat);
@@ -535,7 +533,7 @@ class EditorController {
     let g_detailed = gpu.add(g_deterministic, g_scaled_random_details);
     let g_normalized_detailed = gpu.normalize(g_detailed);
     let g_result = gpu.multiply(g_normalized_detailed, 255);
-    let g_normal_map = gpu.normalMap(g_result, 0.5);
+    let g_normal_map = gpu.normalMap(g_result);
 
     random_mat = g_result.download();
     let normal_map = g_normal_map.download();
