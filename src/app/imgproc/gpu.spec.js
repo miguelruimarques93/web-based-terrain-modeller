@@ -105,7 +105,7 @@ describe('gpu', function () {
     });
 
     it('ifft(fft(mat)) === mat', () => {
-      expect(jsc.forall(powerOf2SizedMatrix, (mat) => {
+      expect(jsc.forall(powerOf2SizedMatrix, mat => {
         let gpu = new GPU();
         let g_mat = gpu.create_gpu_matrix(mat);
         let fft_mat = gpu.compute_fft(g_mat, true);
@@ -115,7 +115,6 @@ describe('gpu', function () {
 
         g_mat.destroy();
         fft_mat.destroy();
-        
 
         let sameSize = mat.cols == mat_2.cols && mat.rows == mat_2.rows && mat.channel == mat_2.channel;
 
