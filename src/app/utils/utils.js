@@ -19,4 +19,28 @@ function setProperty(object, prop, value)
   tempObj[fields[fields.length - 1]] = value;
 }
 
-export { setProperty };
+function deepCopy(obj) {
+  if (Object.prototype.toString.call(obj) === '[object Array]') {
+    var out = [], i = 0, len = obj.length;
+    for ( ; i < len; i++ ) {
+      out[i] = deepCopy(obj[i]);
+    }
+    return out;
+  }
+  if (typeof obj === 'object') {
+    var out = {}, i;
+    for ( i in obj ) {
+      out[i] = deepCopy(obj[i]);
+    }
+    return out;
+  }
+  return obj;
+}
+
+function flatten(arr) {
+  return arr.reduce(function (flat, toFlatten) {
+    return flat.concat(Array.isArray(toFlatten) ? flatten(toFlatten) : toFlatten);
+  }, []);
+}
+
+export { setProperty, deepCopy, flatten };

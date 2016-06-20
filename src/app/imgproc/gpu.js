@@ -27,6 +27,7 @@ import fs_multiply_im from './_shaders/multiply_im.fs!text';
 import fs_divide_im from './_shaders/divide_im.fs!text';
 import fs_normal_map from './_shaders/normal_map.fs!text';
 import fs_type_conversion from './_shaders/type_conversions.fs!text';
+import fs_hermite_spline from './_shaders/hermite_spline.fs!text';
 
 /**
  * GPU class
@@ -429,6 +430,55 @@ class gpu
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
     
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    gl.bindVertexArray(null);
+
+    return result;
+  }
+
+  /**
+   *
+   * @param {gpu_matrix} matrix
+   * @param {Array<float>} control_points
+   * @param {Array<float>} tangents
+   * @param {gpu_matrix} result
+   */
+  map_hermite_spline(matrix, control_points, tangents, result = undefined)
+  {
+    require(matrix.channel == 1, "normalize operation matrix can only have 1 channel.");
+    require(matrix.type == jsfeat.F32_t, "normalize operation requires a float matrix.");
+
+    /** @type {WebGL2RenderingContext} */
+    let gl = this.gl;
+
+    let width = matrix.cols;
+    let height = matrix.rows;
+
+    gl.viewport(0, 0, width, height);
+
+    if (result === undefined)
+    {
+      result = this.create_gpu_matrix();
+    }
+
+    result.allocate(width, height, 1, jsfeat.F32_t);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, matrix.texture);
+
+    gl.bindVertexArray(this.vertexArray);
+
+    gl.useProgram(this.hermiteSplineShaderProgram);
+
+    gl.uniform2f(this.hermiteSplineShaderProgram.uniformLocations.u_transformSize, width, height);
+    gl.uniform1i(this.hermiteSplineShaderProgram.uniformLocations.u_input, 0);
+    gl.uniform2fv(this.hermiteSplineShaderProgram.uniformLocations.u_points[0], new Float32Array(control_points));
+    gl.uniform1fv(this.hermiteSplineShaderProgram.uniformLocations.u_tangents[0], new Float32Array(tangents));
+
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, result.framebuffer);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     gl.bindVertexArray(null);
 
@@ -1007,6 +1057,7 @@ class gpu
       ["minMaxReduceRowsShaderProgram", [], fs_min_max_reduce_rows],
       ["normalizeShaderProgram", [], fs_normalize],
       ["normalMapShaderProgram", [], fs_normal_map],
+      ["hermiteSplineShaderProgram", [], fs_hermite_spline],
 
       ["f32ToU8ShaderProgram", ['I_F32', 'O_U8'], fs_type_conversion],
       ["f32ToI32ShaderProgram", ['I_F32', 'O_I32'], fs_type_conversion],
