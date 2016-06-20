@@ -1,4 +1,4 @@
-import assert from '../utils/assert';
+import { assert, require } from '../utils/assert';
 import { isPowerOf2 } from '../utils/math_utils';
 
 import jsfeat from 'jsfeat';

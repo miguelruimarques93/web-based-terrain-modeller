@@ -1,12 +1,34 @@
-export default function assert(condition, message) 
+
+function require(condition, message)
+{
+  if (!condition)
+  {
+    let errorMessage = "Precondition failed";
+    if (message)
+      errorMessage += ": " + message;
+
+    if (typeof Error !== "undefined")
+    {
+      throw new Error(errorMessage);
+    }
+    throw errorMessage; // Fallback
+  }
+}
+
+function assert(condition, message) 
 {
   if (!condition) 
   {
-    message = message || "Assertion failed";
+    let assertionMessage = "Assertion failed";
+    if (message)
+      assertionMessage += ": " + message;
+
     if (typeof Error !== "undefined") 
     {
-      throw new Error(message);
+      throw new Error(assertionMessage);
     }
-    throw message; // Fallback
+    throw assertionMessage; // Fallback
   }
 }
+
+export { assert, require };

@@ -1,5 +1,5 @@
-import assert from '../utils/assert';
-import { randomUInt } from '../utils/math_utils';
+import { assert, require } from '../utils/assert';
+import { randomUInt, isPowerOf2 } from '../utils/math_utils';
 import { setProperty } from '../utils/utils';
 import _ from 'underscore';
 
@@ -39,6 +39,7 @@ class gpu
   {
     this._init_webgl();
     this._init_buffers();
+    this._init_properties();
   }
 
   /**
@@ -59,7 +60,7 @@ class gpu
   }
   
   /**
-   * Compute FFT
+   * Computes the FFT transform of matrix.
    * @param {gpu_matrix} matrix
    * @param {Boolean} forward
    * @param {gpu_matrix} result
@@ -71,9 +72,9 @@ class gpu
     let destroyInnerMatrix = false;
 
     if (!forward) 
-      assert(matrix.type == jsfeat.F32_t && matrix.channel == 2, "IFFT: matrix must contain complex numbers.");
+      require(matrix.type == jsfeat.F32_t && matrix.channel == 2, "IFFT -> matrix must contain complex numbers.");
     else {
-      assert(matrix.channel <= 2, "FFT: matrix must not have more than 2 channel.");
+      require(matrix.channel <= 2, "FFT -> matrix must not have more than 2 channel.");
       if (matrix.type != jsfeat.F32_t) {
         console.warn("compute_fft: Given matrix is not of type f32. Converting...");
         // Convert matrix to F32_t
@@ -81,6 +82,8 @@ class gpu
         destroyInnerMatrix = true;
       }
     }
+
+    // TODO: Should a square matrix constraint be added?
 
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
@@ -234,7 +237,7 @@ class gpu
    */
   blur(matrix, stdDev = 0.25, result = undefined)
   {
-    assert(matrix.channel == 2 && matrix.type == jsfeat.F32_t, "Gaussian Blur needs a matrix in frequency domain.");
+    require(matrix.channel == 2 && matrix.type == jsfeat.F32_t, "Gaussian Blur needs a matrix in frequency domain.");
 
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
@@ -280,7 +283,7 @@ class gpu
    */
   fPowerMinusBeta(matrix, beta = 1.8, result = undefined)
   {
-    assert(matrix.channel == 2 && matrix.type == jsfeat.F32_t, "fPowerMinusBeta needs a matrix in frequency domain.");
+    require(matrix.channel == 2 && matrix.type == jsfeat.F32_t, "fPowerMinusBeta needs a matrix in frequency domain.");
 
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
@@ -324,8 +327,8 @@ class gpu
    */
   minMax(matrix)
   {
-    assert(matrix.channel == 1, "minMax: Matrix can only have 1 channel.");
-
+    require(matrix.channel == 1, "minMax operation matrix can only have 1 channel.");
+    require(matrix.type == jsfeat.F32_t, "minMax operation requires a float matrix.");
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
     
@@ -389,7 +392,8 @@ class gpu
    */
   normalize(matrix, result = undefined)
   {
-    assert(matrix.channel == 1, "normalize: matrix can only have 1 channel.");
+    require(matrix.channel == 1, "normalize operation matrix can only have 1 channel.");
+    require(matrix.type == jsfeat.F32_t, "normalize operation requires a float matrix.");
 
     /** @type {WebGL2RenderingContext} */ 
     let gl = this.gl;
@@ -573,18 +577,64 @@ class gpu
   {
     this.canvas = document.createElement('canvas');
     this.gl = this.canvas.getContext('webgl2');
+
+    assert(this.gl !== null, "WebGL 2 not supported");
     
-    if (this.gl === null)
-    {
-      throw new Error("WebGL 2 not supported!");
-    }
-    // TODO: Add verifications for webgl version.
-    
-    this.gl.getExtension('EXT_color_buffer_float');
-    
-    // TODO: Add verification for extension.
+    let color_buffer_float_ext = this.gl.getExtension('EXT_color_buffer_float');
+    assert(color_buffer_float_ext !== null, "EXT_color_buffer_float extension not supported.");
   }
-  
+
+  /**
+   * Executes shaderProgram on the two matrices. Assumes the matrices are well defined for the required operation.
+   * @private
+   * @param matrix_a {gpu_matrix}
+   * @param matrix_b {gpu_matrix}
+   * @param shaderProgram {WebGLProgram}
+   * @param result {gpu_matrix}
+   * @returns {gpu_matrix}
+   */
+  _element_wise_operation(matrix_a, matrix_b, shaderProgram, result = undefined)
+  {
+    /** @type {WebGL2RenderingContext} */
+    let gl = this.gl;
+
+    let width = matrix_a.cols;
+    let height = matrix_a.rows;
+    let type = matrix_a.type;
+
+    gl.viewport(0, 0, width, height);
+
+    if (result === undefined)
+    {
+      result = this.create_gpu_matrix();
+    }
+
+    result.allocate(width, height, matrix_a.channel, type);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, matrix_b.texture);
+
+    gl.bindVertexArray(this.vertexArray);
+
+    gl.useProgram(shaderProgram);
+
+    gl.uniform2f(shaderProgram.uniformLocations.u_transformSize, width, height);
+    gl.uniform1i(shaderProgram.uniformLocations.u_input_1, 0);
+    gl.uniform1i(shaderProgram.uniformLocations.u_input_2, 1);
+
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, result.framebuffer);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    gl.bindVertexArray(null);
+
+    return result;
+  }
+
   /**
    * @param matrix_a {gpu_matrix}
    * @param matrix_b {gpu_matrix}
@@ -593,45 +643,20 @@ class gpu
    */
   add(matrix_a, matrix_b, result = undefined)
   {
-    assert(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot add matrices of different shapes.");
-    
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    
-    let width = matrix_a.cols;
-    let height = matrix_a.rows;
-    
-    gl.viewport(0, 0, width, height);
-    
-    if (result === undefined)
-    {
-      result = this.create_gpu_matrix();  
-    }
-    
-    result.allocate(width, height, matrix_a.channel);
-    
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
-    
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, matrix_b.texture);
-    
-    gl.bindVertexArray(this.vertexArray);
-    
-    gl.useProgram(this.addShaderProgram);
-    
-    gl.uniform2f(this.addShaderProgram.uniformLocations.u_transformSize, width, height);
-    gl.uniform1i(this.addShaderProgram.uniformLocations.u_input_1, 0);
-    gl.uniform1i(this.addShaderProgram.uniformLocations.u_input_2, 1);
-    
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, result.framebuffer);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-    
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-    gl.bindVertexArray(null);
+    require(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot add matrices of different shapes.");
+    require(matrix_a.type == matrix_b.type, "Cannot add matrices of different types.");
 
-    return result;
+    let shaderProgram = undefined;
+    switch (matrix_a.type)
+    {
+      case jsfeat.U8_t: shaderProgram = this.u8AddShaderProgram; break;
+      case jsfeat.F32_t: shaderProgram = this.f32AddShaderProgram; break;
+      case jsfeat.S32_t: shaderProgram = this.i32AddShaderProgram; break;
+    }
+
+    assert(shaderProgram != undefined, "Invalid matrix type.");
+
+    return this._element_wise_operation(matrix_a, matrix_b, shaderProgram, result);
   }
   
   /**
@@ -642,45 +667,20 @@ class gpu
    */
   subtract(matrix_a, matrix_b, result = undefined)
   {
-    assert(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot subtract matrices of different shapes.");
-    
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    
-    let width = matrix_a.cols;
-    let height = matrix_a.rows;
-    
-    gl.viewport(0, 0, width, height);
-    
-    if (result === undefined)
-    {
-      result = this.create_gpu_matrix();  
-    }
-    
-    result.allocate(width, height, matrix_a.channel);
-    
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
-    
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, matrix_b.texture);
-    
-    gl.bindVertexArray(this.vertexArray);
-    
-    gl.useProgram(this.subtractShaderProgram);
-    
-    gl.uniform2f(this.subtractShaderProgram.uniformLocations.u_transformSize, width, height);
-    gl.uniform1i(this.subtractShaderProgram.uniformLocations.u_input_1, 0);
-    gl.uniform1i(this.subtractShaderProgram.uniformLocations.u_input_2, 1);
-    
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, result.framebuffer);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-    
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-    gl.bindVertexArray(null);
+    require(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot subtract matrices of different shapes.");
+    require(matrix_a.type == matrix_b.type, "Cannot subtract matrices of different types.");
 
-    return result;
+    let shaderProgram = undefined;
+    switch (matrix_a.type)
+    {
+      case jsfeat.U8_t: shaderProgram = this.u8SubtractShaderProgram; break;
+      case jsfeat.F32_t: shaderProgram = this.f32SubtractShaderProgram; break;
+      case jsfeat.S32_t: shaderProgram = this.i32SubtractShaderProgram; break;
+    }
+
+    assert(shaderProgram != undefined, "Invalid matrix type.");
+
+    return this._element_wise_operation(matrix_a, matrix_b, shaderProgram, result);
   }
   
   /**
@@ -691,47 +691,76 @@ class gpu
    */
   multiply_(matrix_a, matrix_b, result = undefined)
   {
-    assert(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot multiply matrices of different shapes.");
-    
-    /** @type {WebGL2RenderingContext} */ 
+    require(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot multiply matrices of different shapes.");
+    require(matrix_a.type == matrix_b.type, "Cannot multiply matrices of different types.");
+
+    let shaderProgram = undefined;
+    switch (matrix_a.type)
+    {
+      case jsfeat.U8_t: shaderProgram = this.u8MultiplyShaderProgram; break;
+      case jsfeat.F32_t: shaderProgram = this.f32MultiplyShaderProgram; break;
+      case jsfeat.S32_t: shaderProgram = this.i32MultiplyShaderProgram; break;
+    }
+
+    assert(shaderProgram != undefined, "Invalid matrix type.");
+
+    return this._element_wise_operation(matrix_a, matrix_b, shaderProgram, result);
+  }
+
+  /**
+   * Executes shaderProgram on the two matrices. Assumes the matrices are well defined for the required operation.
+   * @private
+   * @param matrix_a {gpu_matrix}
+   * @param value {number}
+   * @param shaderProgram {WebGLProgram}
+   * @param result {gpu_matrix}
+   * @returns {gpu_matrix}
+   */
+  _element_wise_operation_im(matrix_a, value, shaderProgram, result = undefined)
+  {
+    /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
-    
+
     let width = matrix_a.cols;
     let height = matrix_a.rows;
-    
+    let type = matrix_a.type;
+
     gl.viewport(0, 0, width, height);
-    
+
     if (result === undefined)
     {
-      result = this.create_gpu_matrix();  
+      result = this.create_gpu_matrix();
     }
-    
-    result.allocate(width, height, matrix_a.channel);
-    
+
+    result.allocate(width, height, matrix_a.channel, type);
+
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
-    
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, matrix_b.texture);
-    
+
     gl.bindVertexArray(this.vertexArray);
-    
-    gl.useProgram(this.multiplyShaderProgram);
-    
-    gl.uniform2f(this.multiplyShaderProgram.uniformLocations.u_transformSize, width, height);
-    gl.uniform1i(this.multiplyShaderProgram.uniformLocations.u_input_1, 0);
-    gl.uniform1i(this.multiplyShaderProgram.uniformLocations.u_input_2, 1);
-    
+
+    gl.useProgram(shaderProgram);
+
+    gl.uniform2f(shaderProgram.uniformLocations.u_transformSize, width, height);
+    gl.uniform1i(shaderProgram.uniformLocations.u_input_1, 0);
+
+    switch (matrix_a.type)
+    {
+      case jsfeat.U8_t: gl.uniform1ui(shaderProgram.uniformLocations.u_input_2, value); break;
+      case jsfeat.F32_t: gl.uniform1f(shaderProgram.uniformLocations.u_input_2, value); break;
+      case jsfeat.S32_t: gl.uniform1i(shaderProgram.uniformLocations.u_input_2, value); break;
+    }
+
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, result.framebuffer);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-    
+
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     gl.bindVertexArray(null);
 
     return result;
   }
-  
+
   /**
    * @param matrix_a {gpu_matrix}
    * @param value {number}
@@ -740,40 +769,17 @@ class gpu
    */
   multiply_im_(matrix_a, value, result = undefined)
   {
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    
-    let width = matrix_a.cols;
-    let height = matrix_a.rows;
-    
-    gl.viewport(0, 0, width, height);
-    
-    if (result === undefined)
+    let shaderProgram = undefined;
+    switch (matrix_a.type)
     {
-      result = this.create_gpu_matrix();  
+      case jsfeat.U8_t: shaderProgram = this.u8MultiplyImShaderProgram; break;
+      case jsfeat.F32_t: shaderProgram = this.f32MultiplyImShaderProgram; break;
+      case jsfeat.S32_t: shaderProgram = this.i32MultiplyImShaderProgram; break;
     }
-    
-    result.allocate(width, height, matrix_a.channel);
-    
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
-    
-    gl.bindVertexArray(this.vertexArray);
-    
-    gl.useProgram(this.multiplyImShaderProgram);
-    
-    gl.uniform2f(this.multiplyImShaderProgram.uniformLocations.u_transformSize, width, height);
-    gl.uniform1i(this.multiplyImShaderProgram.uniformLocations.u_input_1, 0);
-    gl.uniform1f(this.multiplyImShaderProgram.uniformLocations.u_input_2, value);
-    
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, result.framebuffer);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-    
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-    gl.bindVertexArray(null);
 
-    return result;
+    assert(shaderProgram != undefined, "Invalid matrix type.");
+
+    return this._element_wise_operation_im(matrix_a, value, shaderProgram, result);
   }
   
   /**
@@ -802,40 +808,17 @@ class gpu
    */
   divide(matrix_a, value, result = undefined)
   {
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    
-    let width = matrix_a.cols;
-    let height = matrix_a.rows;
-    
-    gl.viewport(0, 0, width, height);
-    
-    if (result === undefined)
+    let shaderProgram = undefined;
+    switch (matrix_a.type)
     {
-      result = this.create_gpu_matrix();  
+      case jsfeat.U8_t: shaderProgram = this.u8DivideImShaderProgram; break;
+      case jsfeat.F32_t: shaderProgram = this.f32DivideImShaderProgram; break;
+      case jsfeat.S32_t: shaderProgram = this.i32DivideImShaderProgram; break;
     }
-    
-    result.allocate(width, height, matrix_a.channel);
-    
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, matrix_a.texture);
-    
-    gl.bindVertexArray(this.vertexArray);
-    
-    gl.useProgram(this.divideImShaderProgram);
-    
-    gl.uniform2f(this.divideImShaderProgram.uniformLocations.u_transformSize, width, height);
-    gl.uniform1i(this.divideImShaderProgram.uniformLocations.u_input_1, 0);
-    gl.uniform1f(this.divideImShaderProgram.uniformLocations.u_input_2, value);
-    
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, result.framebuffer);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-    
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-    gl.bindVertexArray(null);
 
-    return result;
+    assert(shaderProgram != undefined, "Invalid matrix type.");
+
+    return this._element_wise_operation_im(matrix_a, value, shaderProgram, result);
   }
 
   /**
@@ -847,6 +830,9 @@ class gpu
    */
   normalMap(matrix, alpha = 0.01, result = undefined)
   {
+    require(matrix.type == jsfeat.U8_t, "normalMap operation requires an unsigned byte matrix.");
+    require(matrix.channel == 1, "normalMap operation requires a matrix with only one channel.");
+
     let innerMatrix = matrix;
     let destroyInnerMatrix = false;
     if (matrix.type != jsfeat.U8_t) {
@@ -943,7 +929,7 @@ class gpu
    */
   convert_to(matrix, type, result = undefined)
   {
-    assert(matrix.type != type, "convert_to: Cannot convert matrix to original type.");
+    require(matrix.type != type, "convert_to: Cannot convert matrix to same type.");
 
     let shaderProgram = this._get_convertion_shader(matrix.type, type);
 
@@ -981,362 +967,86 @@ class gpu
 
     return result;
   }
-  
+
+  /**
+   *
+   * @param name {String}
+   * @param definitions {Array<String>}
+   * @param fragmentSource {String}
+   */
+  _define_shader_program_property(name, definitions, fragmentSource) {
+    let src = definitions.length > 0 ? this._shader_inject_definition(definitions, fragmentSource) : fragmentSource;
+
+    Object.defineProperty(this, name, {
+      configurable: true,
+      get: () => {
+        let gl = this.gl;
+        let fShader = this._compile_shader(src, gl.FRAGMENT_SHADER);
+        let program = this._create_shader_program(this.vertexShader, fShader);
+        gl.deleteShader(fShader);
+
+        Object.defineProperty(this, name, {value: program, configurable: true});
+        return program;
+      }
+    });
+  }
+
+  _init_properties() {
+    let properties = [
+      ["horizontalFFTShaderProgram", ['HORIZONTAL'], fs_fft],
+      ["verticalFFTShaderProgram", [], fs_fft],
+      ["swapShaderProgram", [], fs_swap],
+      ["gaussianBlurShaderProgram", [], fs_gaussian_blur],
+      ["fPowerMinusBetaShaderProgram", [], fs_f_power_minus_beta],
+      ["magnitudeShaderProgram", [], fs_magnitude],
+      ["realShaderProgram", [], fs_real],
+      ["whiteNoiseShaderProgram", [], fs_white_noise],
+      ["snoise2ShaderProgram", [], fs_simplex_noise],
+      ["pnoise2ShaderProgram", [], fs_perlin_noise],
+      ["minMaxReduceColumnsShaderProgram", [], fs_min_max_reduce_columns],
+      ["minMaxReduceRowsShaderProgram", [], fs_min_max_reduce_rows],
+      ["normalizeShaderProgram", [], fs_normalize],
+      ["normalMapShaderProgram", [], fs_normal_map],
+
+      ["f32ToU8ShaderProgram", ['I_F32', 'O_U8'], fs_type_conversion],
+      ["f32ToI32ShaderProgram", ['I_F32', 'O_I32'], fs_type_conversion],
+      ["u8ToF32ShaderProgram", ['I_U8', 'O_F32'], fs_type_conversion],
+      ["u8ToI32ShaderProgram", ['I_U8', 'O_I32'], fs_type_conversion],
+      ["i32ToF32ShaderProgram", ['I_I32', 'O_F32'], fs_type_conversion],
+      ["i32ToU8ShaderProgram", ['I_I32', 'O_U8'], fs_type_conversion],
+
+      ['u8AddShaderProgram', ['U8'], fs_add],
+      ['f32AddShaderProgram', ['F32'], fs_add],
+      ['i32AddShaderProgram', ['I32'], fs_add],
+
+      ['u8SubtractShaderProgram', ['U8'], fs_subtract],
+      ['f32SubtractShaderProgram', ['F32'], fs_subtract],
+      ['i32SubtractShaderProgram', ['I32'], fs_subtract],
+
+      ['u8MultiplyShaderProgram', ['U8'], fs_multiply],
+      ['f32MultiplyShaderProgram', ['F32'], fs_multiply],
+      ['i32MultiplyShaderProgram', ['I32'], fs_multiply],
+
+      ['u8MultiplyImShaderProgram', ['U8'], fs_multiply_im],
+      ['f32MultiplyImShaderProgram', ['F32'], fs_multiply_im],
+      ['i32MultiplyImShaderProgram', ['I32'], fs_multiply_im],
+
+      ['u8DivideImShaderProgram', ['U8'], fs_divide_im],
+      ['f32DivideImShaderProgram', ['F32'], fs_divide_im],
+      ['i32DivideImShaderProgram', ['I32'], fs_divide_im],
+    ];
+
+    for (let i = 0; i < properties.length; ++i) {
+      this._define_shader_program_property(properties[i][0], properties[i][1], properties[i][2]);
+    }
+  }
+
   get vertexShader()
   {
     //DEBUG console.log("Initializing vertexShader");
     this._vertexShader = this._compile_shader(vs_pass, this.gl.VERTEX_SHADER);
     Object.defineProperty(this, "vertexShader", { value: this._vertexShader, configurable: true });
     return this._vertexShader;
-  }
-  
-  get horizontalFFTShaderProgram()
-  {
-    //DEBUG console.log("Initializing horizontalFFTShaderProgram");
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(this._shader_inject_definition(['HORIZONTAL'], fs_fft), gl.FRAGMENT_SHADER);
-    this._horizontalFFTShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "horizontalFFTShaderProgram", { value: this._horizontalFFTShaderProgram, configurable: true });
-    return this._horizontalFFTShaderProgram;
-  }
-  
-  get verticalFFTShaderProgram()
-  {
-    //DEBUG console.log("Initializing verticalFFTShaderProgram");
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_fft, gl.FRAGMENT_SHADER);
-    this._verticalFFTShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "verticalFFTShaderProgram", { value: this._verticalFFTShaderProgram, configurable: true });
-    return this._verticalFFTShaderProgram;
-  }
-  
-  get swapShaderProgram()
-  {
-    //DEBUG console.log("Initializing swapShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_swap, gl.FRAGMENT_SHADER);
-    this._swapShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "swapShaderProgram", { value: this._swapShaderProgram, configurable: true });
-    return this._swapShaderProgram;
-  }
-  
-  get gaussianBlurShaderProgram()
-  {
-    //DEBUG console.log("Initializing gaussianBlurShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_gaussian_blur, gl.FRAGMENT_SHADER);
-    this._gaussianBlurShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "gaussianBlurShaderProgram", { value: this._gaussianBlurShaderProgram, configurable: true });
-    return this._gaussianBlurShaderProgram;
-  }
-  
-  get fPowerMinusBetaShaderProgram()
-  {
-    //DEBUG console.log("Initializing fPowerMinusBetaShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_f_power_minus_beta, gl.FRAGMENT_SHADER);
-    this._fPowerMinusBetaShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "fPowerMinusBetaShaderProgram", { value: this._fPowerMinusBetaShaderProgram, configurable: true });
-    return this._fPowerMinusBetaShaderProgram;
-  }
-  
-  get magnitudeShaderProgram()
-  {
-    //DEBUG console.log("Initializing magnitudeShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_magnitude, gl.FRAGMENT_SHADER);
-    this._magnitudeShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "magnitudeShaderProgram", { value: this._magnitudeShaderProgram, configurable: true });
-    return this._magnitudeShaderProgram;
-  }  
-
-  get realShaderProgram()
-  {
-    //DEBUG console.log("Initializing magnitudeShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_real, gl.FRAGMENT_SHADER);
-    this._realShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "realShaderProgram", { value: this._realShaderProgram, configurable: true });
-    return this._realShaderProgram;
-  }
-  
-  get whiteNoiseShaderProgram()
-  {
-    //DEBUG console.log("Initializing whiteNoiseShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_white_noise, gl.FRAGMENT_SHADER);
-    this._whiteNoiseShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "whiteNoiseShaderProgram", { value: this._whiteNoiseShaderProgram, configurable: true });
-    return this._whiteNoiseShaderProgram;
-  }
-  
-  get snoise2ShaderProgram()
-  {
-    //DEBUG console.log("Initializing snoise2ShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_simplex_noise, gl.FRAGMENT_SHADER);
-    this._snoise2ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "snoise2ShaderProgram", { value: this._snoise2ShaderProgram, configurable: true });
-    return this._snoise2ShaderProgram;
-  }
-  
-  get pnoise2ShaderProgram()
-  {
-    //DEBUG console.log("Initializing pnoise2ShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_perlin_noise, gl.FRAGMENT_SHADER);
-    this._pnoise2ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "pnoise2ShaderProgram", { value: this._pnoise2ShaderProgram, configurable: true });
-    return this._pnoise2ShaderProgram;
-  }
-  
-  get minMaxReduceColumnsShaderProgram()
-  {
-    //DEBUG console.log("Initializing minMaxReduceColumnsShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_min_max_reduce_columns, gl.FRAGMENT_SHADER);
-    this._minMaxReduceColumnsShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "minMaxReduceColumnsShaderProgram", { value: this._minMaxReduceColumnsShaderProgram, configurable: true });
-    return this._minMaxReduceColumnsShaderProgram;
-  }
-  
-  get minMaxReduceRowsShaderProgram()
-  {
-    //DEBUG console.log("Initializing minMaxReduceRowsShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_min_max_reduce_rows, gl.FRAGMENT_SHADER);
-    this._minMaxReduceRowsShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "minMaxReduceRowsShaderProgram", { value: this._minMaxReduceRowsShaderProgram, configurable: true });
-    return this._minMaxReduceRowsShaderProgram;
-  }
-  
-  get normalizeShaderProgram()
-  {
-    //DEBUG console.log("Initializing normalizeShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_normalize, gl.FRAGMENT_SHADER);
-    this._normalizeShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "normalizeShaderProgram", { value: this._normalizeShaderProgram, configurable: true });
-    return this._normalizeShaderProgram;
-  }
-  
-  get addShaderProgram()
-  {
-    //DEBUG console.log("Initializing addShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_add, gl.FRAGMENT_SHADER);
-    this._addShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "addShaderProgram", { value: this._addShaderProgram, configurable: true });
-    return this._addShaderProgram;
-  }
-  
-  get subtractShaderProgram()
-  {
-    //DEBUG console.log("Initializing subtractShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_subtract, gl.FRAGMENT_SHADER);
-    this._subtractShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "subtractShaderProgram", { value: this._subtractShaderProgram, configurable: true });
-    return this._subtractShaderProgram;
-  }
-  
-  get multiplyShaderProgram()
-  {
-    //DEBUG console.log("Initializing multiplyShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_multiply, gl.FRAGMENT_SHADER);
-    this._multiplyShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "multiplyShaderProgram", { value: this._multiplyShaderProgram, configurable: true });
-    return this._multiplyShaderProgram;
-  }
-  
-  get multiplyImShaderProgram()
-  {
-    //DEBUG console.log("Initializing multiplyImShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_multiply_im, gl.FRAGMENT_SHADER);
-    this._multiplyImShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "multiplyImShaderProgram", { value: this._multiplyImShaderProgram, configurable: true });
-    return this._multiplyImShaderProgram;
-  }
-
-  get divideImShaderProgram()
-  {
-    //DEBUG console.log("Initializing divideImShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_divide_im, gl.FRAGMENT_SHADER);
-    this._divideImShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "divideImShaderProgram", { value: this._divideImShaderProgram, configurable: true });
-    return this._divideImShaderProgram;
-  }
-  
-  get normalMapShaderProgram()
-  {
-    //DEBUG console.log("Initializing divideImShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */ 
-    let gl = this.gl;
-    let fShader = this._compile_shader(fs_normal_map, gl.FRAGMENT_SHADER);
-    this._normalMapShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
- 
-    Object.defineProperty(this, "normalMapShaderProgram", { value: this._normalMapShaderProgram, configurable: true });
-    return this._normalMapShaderProgram;
-  }
-
-  get f32ToU8ShaderProgram()
-  {
-    //DEBUG console.log("Initializing divideImShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */
-    let gl = this.gl;
-    let fShader = this._compile_shader(this._shader_inject_definition(['I_F32', 'O_U8'], fs_type_conversion), gl.FRAGMENT_SHADER);
-    //let fShader = this._compile_shader(fs_type_conversion, gl.FRAGMENT_SHADER);
-    this._f32ToU8ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
-
-    Object.defineProperty(this, "f32ToU8ShaderProgram", { value: this._f32ToU8ShaderProgram, configurable: true });
-    return this._f32ToU8ShaderProgram;
-  }
-
-  get f32ToI32ShaderProgram()
-  {
-    //DEBUG console.log("Initializing divideImShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */
-    let gl = this.gl;
-    let fShader = this._compile_shader(this._shader_inject_definition(['I_F32', 'O_I32'], fs_type_conversion), gl.FRAGMENT_SHADER);
-    this._f32ToI32ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
-
-    Object.defineProperty(this, "f32ToI32ShaderProgram", { value: this._f32ToI32ShaderProgram, configurable: true });
-    return this._f32ToI32ShaderProgram;
-  }
-
-  get u8ToF32ShaderProgram()
-  {
-    //DEBUG console.log("Initializing divideImShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */
-    let gl = this.gl;
-    let fShader = this._compile_shader(this._shader_inject_definition(['I_U8', 'O_F32'], fs_type_conversion), gl.FRAGMENT_SHADER);
-    this._u8ToF32ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
-
-    Object.defineProperty(this, "u8ToF32ShaderProgram", { value: this._u8ToF32ShaderProgram, configurable: true });
-    return this._u8ToF32ShaderProgram;
-  }
-
-  get u8ToI32ShaderProgram()
-  {
-    //DEBUG console.log("Initializing divideImShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */
-    let gl = this.gl;
-    let fShader = this._compile_shader(this._shader_inject_definition(['I_U8', 'O_I32'], fs_type_conversion), gl.FRAGMENT_SHADER);
-    this._u8ToI32ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
-
-    Object.defineProperty(this, "u8ToI32ShaderProgram", { value: this._u8ToI32ShaderProgram, configurable: true });
-    return this._u8ToI32ShaderProgram;
-  }
-
-  get i32ToF32ShaderProgram()
-  {
-    //DEBUG console.log("Initializing divideImShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */
-    let gl = this.gl;
-    let fShader = this._compile_shader(this._shader_inject_definition(['I_I32', 'O_F32'], fs_type_conversion), gl.FRAGMENT_SHADER);
-    this._i32ToF32ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
-
-    Object.defineProperty(this, "i32ToF32ShaderProgram", { value: this._i32ToF32ShaderProgram, configurable: true });
-    return this._i32ToF32ShaderProgram;
-  }
-
-  get i32ToU8ShaderProgram()
-  {
-    //DEBUG console.log("Initializing divideImShaderProgram");
-
-    /** @type {WebGL2RenderingContext} */
-    let gl = this.gl;
-    let fShader = this._compile_shader(this._shader_inject_definition(['I_I32', 'O_U8'], fs_type_conversion), gl.FRAGMENT_SHADER);
-    this._i32ToU8ShaderProgram = this._create_shader_program(this.vertexShader, fShader);
-    gl.deleteShader(fShader);
-
-    Object.defineProperty(this, "i32ToU8ShaderProgram", { value: this._i32ToU8ShaderProgram, configurable: true });
-    return this._i32ToU8ShaderProgram;
   }
 
   /**
