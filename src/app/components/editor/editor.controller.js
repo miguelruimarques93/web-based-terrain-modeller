@@ -530,11 +530,9 @@ class EditorController {
     let g_deterministic = gpu.create_gpu_matrix(deterministic_mat_f32);
     let g_norm_deterministic = gpu.normalize(g_deterministic);
 
-    // this.blend_data; TODO
-    // this.$element
+    // TODO: Check blend_data
 
-    let g_mapped_norm_deterministic = gpu.map_hermite_spline(g_norm_deterministic, flatten(this.blend_data.points),
-      this.blend_data.tangents); // FIXME
+    let g_mapped_norm_deterministic = gpu.map_hermite_spline(g_norm_deterministic, flatten(this.blend_data.points), this.blend_data.tangents);
 
     let g_scaled_random_details = gpu.multiply(g_random_details, g_mapped_norm_deterministic);
 
