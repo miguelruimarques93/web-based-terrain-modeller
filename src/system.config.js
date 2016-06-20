@@ -27,6 +27,7 @@ System.config({
     "babel-runtime": "npm:babel-runtime@5.8.38",
     "core-js": "npm:core-js@1.2.6",
     "d3": "npm:d3@3.5.17",
+    "es6-error": "npm:es6-error@3.0.0",
     "fs": "github:jspm/nodelibs-fs@0.1.2",
     "jquery": "npm:jquery@2.2.4",
     "jsfeat": "github:inspirit/jsfeat@0.0.8",

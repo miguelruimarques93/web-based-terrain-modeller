@@ -53,6 +53,7 @@
       "angular-mocks": "github:angular/bower-angular-mocks@^1.5.3",
       "angular-ui-router": "github:angular-ui/ui-router@^0.2.18",
       "d3": "npm:d3@^3.5.17",
+      "es6-error": "npm:es6-error@^3.0.0",
       "fs": "github:jspm/nodelibs-fs@0.1.2",
       "jquery": "npm:jquery@^2.2.3",
       "jsfeat": "github:inspirit/jsfeat@0.0.8",
