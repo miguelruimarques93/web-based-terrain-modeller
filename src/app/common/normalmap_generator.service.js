@@ -76,10 +76,14 @@ class NormalmapGeneratorService {
       let gpu = this.gpu;
 
       let g_heightmap = gpu.create_gpu_matrix(heightmap_mat);
-      let g_normalmap = gpu.normalMap(g_heightmap, strength);
+
+      let g_heightmap_u8 = g_heightmap.type == jsfeat.U8_t ? g_heightmap : gpu.convert_to(g_heightmap, jsfeat.U8_t);
+
+      let g_normalmap = gpu.normalMap(g_heightmap_u8, strength);
 
       let result = g_normalmap.download();
 
+      if (g_heightmap.type != jsfeat.U8_t) g_heightmap_u8.destroy();
       g_heightmap.destroy();
       g_normalmap.destroy();
 
