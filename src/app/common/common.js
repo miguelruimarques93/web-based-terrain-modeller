@@ -9,7 +9,8 @@ export default angular.module('app.common', [])
   .service(normalmap_generator.service_name, normalmap_generator)
   .service(random_surface_generator.service_name, random_surface_generator)
   .directive(spline_editor.directive_name, spline_editor.factory)
-  .factory('$exceptionHandler', ['$log', '$injector', function ($log, $injector) {
+  .factory('$exceptionHandler', function ($log, $injector) {
+    'ngInject';
     var $mdDialog;
 
     return function myExceptionHandler(exception, cause) {
@@ -25,6 +26,6 @@ export default angular.module('app.common', [])
       );
       $log.error(exception, cause);
     };
-  }])
+  })
   ;
   

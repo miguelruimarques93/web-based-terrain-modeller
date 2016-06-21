@@ -24,7 +24,8 @@ SystemJS.config({
       "http": "github:jspm/nodelibs-http@0.2.0-alpha",
       "url": "github:jspm/nodelibs-url@0.2.0-alpha",
       "syntax-decorators": "npm:babel-plugin-syntax-decorators@6.8.0",
-      "ng-annotate": "npm:babel-plugin-ng-annotate@0.3.2"
+      "ng-annotate": "npm:babel-plugin-ng-annotate@0.3.2",
+      "ng-inject": "npm:babel-plugin-ng-inject@1.0.0"
     },
     "packages": {
       "npm:babel-runtime@5.8.38": {
@@ -526,6 +527,11 @@ SystemJS.config({
         "map": {
           "babel-runtime": "npm:babel-runtime@6.9.2"
         }
+      },
+      "npm:babel-plugin-ng-inject@1.0.0": {
+        "map": {
+          "lodash": "npm:lodash@4.13.1"
+        }
       }
     }
   },
@@ -537,7 +543,8 @@ SystemJS.config({
     ],
     "plugins": [
       "syntax-decorators",
-      "ng-annotate"
+      "ng-annotate",
+      "ng-inject"
     ]
   },
   map: {

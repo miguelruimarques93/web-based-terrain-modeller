@@ -79,6 +79,7 @@
       "http": "github:jspm/nodelibs-http@^0.2.0-alpha",
       "module": "github:jspm/nodelibs-module@^0.2.0-alpha",
       "ng-annotate": "npm:babel-plugin-ng-annotate@^0.3.2",
+      "ng-inject": "npm:babel-plugin-ng-inject@^1.0.0",
       "plugin-babel": "npm:systemjs-plugin-babel@^0.0.12",
       "syntax-decorators": "npm:babel-plugin-syntax-decorators@^6.8.0",
       "url": "github:jspm/nodelibs-url@^0.2.0-alpha"

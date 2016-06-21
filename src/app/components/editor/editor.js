@@ -4,7 +4,7 @@ import editorComponent from './editor.component';
 let editorModule = angular.module('app.editor', [])
 
 .config($stateProvider => {
-  "ngInject";
+  'ngInject';
   
   $stateProvider
     .state('editor', {

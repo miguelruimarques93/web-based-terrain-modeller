@@ -36,8 +36,9 @@ angular
         appComponent
       ])
       .config($mdThemingProvider => {
+        'ngInject';
         $mdThemingProvider.theme('default').primaryPalette('teal');
       });
       
-    angular.bootstrap( body, [app.name], { strictDi: false });
+    angular.bootstrap( body, [app.name], { strictDi: true });
   });

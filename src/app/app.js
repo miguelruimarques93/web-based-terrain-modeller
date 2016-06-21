@@ -13,6 +13,7 @@ let appModule = angular.module('app', [
   ImgProc.name
 ])
 .config(($urlRouterProvider, $locationProvider) => {
+  'ngInject';
   $locationProvider.html5Mode(true).hashPrefix('!');
   $urlRouterProvider.otherwise('/editor');  
 })
