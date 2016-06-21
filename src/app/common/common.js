@@ -9,5 +9,22 @@ export default angular.module('app.common', [])
   .service(normalmap_generator.service_name, normalmap_generator)
   .service(random_surface_generator.service_name, random_surface_generator)
   .directive(spline_editor.directive_name, spline_editor.factory)
+  .factory('$exceptionHandler', ['$log', '$injector', function ($log, $injector) {
+    var $mdDialog;
+
+    return function myExceptionHandler(exception, cause) {
+      $mdDialog = $mdDialog || $injector.get('$mdDialog');
+
+      $mdDialog.show(
+        $mdDialog.alert()
+          .parent(angular.element(document.getElementsByTagName('body')))
+          .clickOutsideToClose(false)
+          .title('Development Error')
+          .textContent(exception.message)
+          .ok('Got it!')
+      );
+      $log.error(exception, cause);
+    };
+  }])
   ;
   
