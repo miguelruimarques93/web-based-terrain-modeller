@@ -28,7 +28,9 @@ class SplineEditor {
 
       for (let i = 0; i < this.internal_points.length; ++i) {
         this.internal_points[i][0] = this.internal_points[i][0] * (this.bounds_x[1] - this.bounds_x[0]) + this.bounds_x[0];
-        this.internal_points[i][1] = this.internal_points[i][1] * (this.bounds_y[1] - this.bounds_y[0]) + this.bounds_y[0];
+        console.log(`${this.internal_points[i][1]} * (${this.bounds_y[1]} - ${this.bounds_y[0]}) + ${this.bounds_y[0]}`);
+        this.internal_points[i][1] = this.internal_points[i][1] * (this.bounds_y[1] - this.bounds_y[0])/* + this.bounds_y[0]*/;
+        console.log(`${this.internal_points[i][1]}`);
         this.internal_points[i][1] = this.bounds_y[1] - this.internal_points[i][1];
       }
     } else {
@@ -180,9 +182,8 @@ class SplineEditor {
     for (let i = 0; i < this.internal_points.length; ++i) {
       this.$scope.data.points[i][0] = (this.internal_points[i][0] - this.bounds_x[0]) / (this.bounds_x[1] - this.bounds_x[0]);
       this.$scope.data.points[i][1] = this.bounds_y[1] - this.internal_points[i][1];
-      this.$scope.data.points[i][1] = (this.$scope.data.points[i][1] - this.bounds_y[0]) / (this.bounds_y[1] - this.bounds_y[0]);
+      this.$scope.data.points[i][1] = (this.$scope.data.points[i][1]) / (this.bounds_y[1] - this.bounds_y[0]);
     }
-
   }
 
   update_scope() {
