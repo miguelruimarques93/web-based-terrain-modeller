@@ -1,10 +1,8 @@
 import jsfeat from 'jsfeat';
 
+@Inject('$q', 'FileReader')
 class HeightmapReaderService {  
-  constructor($q, FileReader) {
-    this.$q = $q;
-    this.FileReader = FileReader;
-    
+  constructor() {
     console.log( `Initializing HeightmapReaderService`);
   }
   

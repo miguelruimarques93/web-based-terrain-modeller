@@ -35,12 +35,10 @@ function noise2(noise_func) {
 let pnoise2 = noise2(noise.perlin2);
 let snoise2 = noise2(noise.simplex2);
 
+@Inject('$q', 'gpu')
 class RandomSurfaceGeneratorService {
-  constructor($q, gpu) {
+  constructor() {
     console.log( `Initializing RandomSurfaceGeneratorService`);
-    
-    this.$q = $q;
-    this.gpu = gpu;
   }
 
   generate_surface_perlin_noise(width, height, frequency = 160, octaves = 10, persistence = 0.5, lacunarity = 2.0, base = 0.0, seed = Math.random()) {

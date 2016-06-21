@@ -1,10 +1,8 @@
 import jsfeat from 'jsfeat';
 
+@Inject('$q', 'gpu')
 class NormalmapGeneratorService {  
-  constructor($q, gpu) {
-    this.$q = $q;
-    this.gpu = gpu;
-    
+  constructor() {
     console.log( `Initializing NormalmapGeneratorService`);
   }
   

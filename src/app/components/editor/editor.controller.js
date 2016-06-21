@@ -182,42 +182,33 @@ function create_canvas_from_matrix_normal(src) {
   return canvas.toDataURL();
 }
 
+@Inject(
+  '$mdDialog',
+  '$element',
+  '$timeout',
+  'FileReader',
+  '$scope',
+  '$mdMenu',
+  '$q',
+  'heightmapReader',
+  'normalmapGenerator',
+  'randomSurfaceGenerator',
+  'gpu')
 class EditorController {
 
   /**
    *
-   * @param $mdDialog
-   * @param $element
-   * @param $timeout
-   * @param FileReader
-   * @param $scope
-   * @param $mdMenu
-   * @param $q
-   * @param {HeightmapReaderService} heightmapReader
-   * @param {NormalmapGeneratorService} normalmapGenerator
-   * @param randomSurfaceGenerator
-   * @param gpu
    */
-  constructor($mdDialog, $element, $timeout, FileReader, $scope, $mdMenu, $q, heightmapReader, normalmapGenerator, randomSurfaceGenerator, gpu) {
-    this.mdDialog = $mdDialog;
-    this.FileReader = FileReader;
-    this.$scope = $scope;
-    this.$mdMenu = $mdMenu;
-    this.heightmapReader = heightmapReader;
-    this.normalmapGenerator = normalmapGenerator;
-    this.randomSurfaceGenerator = randomSurfaceGenerator;
-    this.$element = $element;
+  constructor() {
     this.images = [];
-    this.$q = $q;
-    this.gpu = gpu;
 
     this.init_scope();
 
-    $timeout((() => {
+    this.$timeout(() => {
       this.canvas = angular.element($element).find('canvas');
       this.init();
       this.animate();
-    }).bind(this));
+    });
 
     this.controls = null;
   }
@@ -374,17 +365,17 @@ class EditorController {
 
   random_perlin_surface_(ev, width = 256, height = 256) {
     return this.$q(((resolve, reject) => {
-      this.mdDialog.show({
+      this.$mdDialog.show({
         template: perlinNoiseDialogTemplate,
         targetEvent: ev,
         scope: this.$scope,
         preserveScope: true,
         controller: ($scope) => {
           $scope.cancel = (() => {
-            this.mdDialog.cancel();
+            this.$mdDialog.cancel();
           }).bind(this);
           $scope.confirm = (() => {
-            this.mdDialog.hide();
+            this.$mdDialog.hide();
           }).bind(this);
         },
         clickOutsideToClose: false
@@ -414,17 +405,17 @@ class EditorController {
 
   random_simplex_surface_(ev, width = 256, height = 256) {
     return this.$q(((resolve, reject) => {
-      this.mdDialog.show({
+      this.$mdDialog.show({
         template: simplexNoiseDialogTemplate,
         targetEvent: ev,
         scope: this.$scope,
         preserveScope: true,
         controller: ($scope) => {
           $scope.cancel = (() => {
-            this.mdDialog.cancel();
+            this.$mdDialog.cancel();
           }).bind(this);
           $scope.confirm = (() => {
-            this.mdDialog.hide();
+            this.$mdDialog.hide();
           }).bind(this);
         },
         clickOutsideToClose: false
@@ -455,17 +446,17 @@ class EditorController {
   random_fourier_surface_(ev, width = 256, height = 256) {
 
     return this.$q(((resolve, reject) => {
-      this.mdDialog.show({
+      this.$mdDialog.show({
         template: fourierSynthesisDialogTemplate,
         targetEvent: ev,
         scope: this.$scope,
         preserveScope: true,
         controller: ($scope) => {
           $scope.cancel = (() => {
-            this.mdDialog.cancel();
+            this.$mdDialog.cancel();
           }).bind(this);
           $scope.confirm = (() => {
-            this.mdDialog.hide();
+            this.$mdDialog.hide();
           }).bind(this);
         },
         clickOutsideToClose: false
@@ -492,7 +483,7 @@ class EditorController {
   }
 
   show_image(ev, image_url) {
-    this.mdDialog.show({
+    this.$mdDialog.show({
       template: imageTemplate,
       targetEvent: ev,
       locals: {
@@ -567,7 +558,7 @@ class EditorController {
 
   add_perlin_detail(ev) {
     if (!_.has(this, 'deterministic_mat')) {
-      this.mdDialog.show(this.mdDialog.alert()
+      this.$mdDialog.show(this.$mdDialog.alert()
         .title("Error")
         .textContent('Cannot add detail without deterministic surface.')
         .ok('Ok')
@@ -581,7 +572,7 @@ class EditorController {
 
   add_simplex_detail(ev) {
     if (!_.has(this, 'deterministic_mat')) {
-      this.mdDialog.show(this.mdDialog.alert()
+      this.$mdDialog.show(this.$mdDialog.alert()
         .title("Error")
         .textContent('Cannot add detail without deterministic surface.')
         .ok('Ok')
@@ -595,7 +586,7 @@ class EditorController {
 
   add_fourier_detail(ev) {
     if (!_.has(this, 'deterministic_mat')) {
-      this.mdDialog.show(this.mdDialog.alert()
+      this.$mdDialog.show(this.$mdDialog.alert()
         .title("Error")
         .textContent('Cannot add detail without deterministic surface.')
         .ok('Ok')
@@ -608,7 +599,7 @@ class EditorController {
   }
 
   sampleAction(name, ev) {
-    this.mdDialog.show(this.mdDialog.alert()
+    this.$mdDialog.show(this.$mdDialog.alert()
       .title(name)
       .textContent('You triggered the "' + name + '" action')
       .ok('Great')

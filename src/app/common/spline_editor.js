@@ -4,8 +4,9 @@
 import d3 from 'd3';
 import { deepCopy } from '../utils/utils';
 
+@Inject('$parse')
 class SplineEditor {
-  constructor($parse) {
+  constructor() {
     this.restrict = 'E';
     this.scope = {
       data: '=data'
