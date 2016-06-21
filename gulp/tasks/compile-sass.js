@@ -1,5 +1,4 @@
 var gulp = require('gulp');
-var browserSync = require('browser-sync');
 var gulpInsert = require('gulp-insert');
 var gulpSass = require('gulp-sass');
 var gulpSourcemaps = require('gulp-sourcemaps');
@@ -29,7 +28,6 @@ gulp.task('compile-sass', function () {
     }))
     .pipe(gulpSourcemaps.write('.' /* write as a separate file */))
     // .pipe(autoprefixer())
-    .pipe(gulp.dest(config.sass.dest))
-    .pipe(browserSync.reload({stream: true}));
+    .pipe(gulp.dest(config.sass.dest));
     
 });

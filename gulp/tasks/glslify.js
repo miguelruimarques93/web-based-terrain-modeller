@@ -1,5 +1,4 @@
 var gulp = require('gulp');
-var browserSync = require('browser-sync');
 var through = require('through2');
 var glslify = require('glslify');
 var path = require('path');
@@ -23,6 +22,5 @@ gulp.task('glslify', function () {
     .pipe(rename(function (path) {
       path.dirname = '_shaders';
     }))
-    .pipe(gulp.dest(config.shaders.dest))
-    .pipe(browserSync.reload({stream: true}));
+    .pipe(gulp.dest(config.shaders.dest));
 });
