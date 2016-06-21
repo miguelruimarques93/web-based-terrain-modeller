@@ -5,7 +5,6 @@
   "author": "Miguel Marques",
   "license": "MIT",
   "devDependencies": {
-    "babel-plugin-transform-class-properties": "^6.9.0",
     "browser-sync": "^2.12.3",
     "connect-modrewrite": "^0.9.0",
     "del": "^2.2.0",
@@ -24,7 +23,7 @@
     "gulp-sourcemaps": "^1.6.0",
     "gulp-template": "^4.0.0",
     "jasmine-core": "^2.4.1",
-    "jspm": "^0.16.35",
+    "jspm": "^0.17.0-beta.22",
     "karma": "^0.13.22",
     "karma-chrome-launcher": "^1.0.1",
     "karma-jasmine": "^1.0.2",
@@ -36,10 +35,14 @@
     "yargs": "^4.6.0"
   },
   "jspm": {
+    "main": "boot.js",
     "directories": {
       "baseURL": "src",
       "lib": "src/app",
       "packages": "src/app/vendor/jspm_packages"
+    },
+    "configFiles": {
+      "jspm": "src/system.config.js"
     },
     "configFile": "src/system.config.js",
     "dependencies": {
@@ -54,26 +57,141 @@
       "angular-ui-router": "github:angular-ui/ui-router@^0.2.18",
       "d3": "npm:d3@^3.5.17",
       "es6-error": "npm:es6-error@^3.0.0",
-      "fs": "github:jspm/nodelibs-fs@0.1.2",
+      "fft.js": "local:fft.js@0.0.1",
       "jquery": "npm:jquery@^2.2.3",
       "jsfeat": "github:inspirit/jsfeat@0.0.8",
       "jsverify": "npm:jsverify@^0.7.1",
       "leaflet": "github:Leaflet/Leaflet@^0.7.7",
       "material-design-icons-iconfont": "npm:material-design-icons-iconfont@^2.0.5",
       "ng-file-upload": "npm:ng-file-upload@^12.0.4",
-      "path": "github:jspm/nodelibs-path@0.1.0",
+      "noisejs": "local:noisejs@0.0.1",
       "scss": "github:mobilexag/plugin-sass@^0.4.3",
       "text": "github:systemjs/plugin-text@^0.0.8",
       "three": "github:mrdoob/three.js@r77",
       "three-orbit-controls": "github:deltaaskii/three-orbit-controls@master",
+      "three-trackball-controls": "local:three-trackball-controls@0.77.0",
       "underscore": "npm:underscore@^1.8.3"
     },
     "devDependencies": {
-      "babel": "npm:babel-core@^5.8.24",
       "babel-runtime": "npm:babel-runtime@^5.8.24",
-      "core-js": "npm:core-js@^1.1.4"
+      "core-js": "npm:core-js@^1.1.4",
+      "plugin-babel": "npm:systemjs-plugin-babel@^0.0.12"
+    },
+    "peerDependencies": {
+      "assert": "github:jspm/nodelibs-assert@^0.2.0-alpha",
+      "buffer": "github:jspm/nodelibs-buffer@^0.2.0-alpha",
+      "child_process": "github:jspm/nodelibs-child_process@^0.2.0-alpha",
+      "constants": "github:jspm/nodelibs-constants@^0.2.0-alpha",
+      "crypto": "github:jspm/nodelibs-crypto@^0.2.0-alpha",
+      "events": "github:jspm/nodelibs-events@^0.2.0-alpha",
+      "fs": "github:jspm/nodelibs-fs@^0.2.0-alpha",
+      "path": "github:jspm/nodelibs-path@^0.2.0-alpha",
+      "process": "github:jspm/nodelibs-process@^0.2.0-alpha",
+      "stream": "github:jspm/nodelibs-stream@^0.2.0-alpha",
+      "string_decoder": "github:jspm/nodelibs-string_decoder@^0.2.0-alpha",
+      "util": "github:jspm/nodelibs-util@^0.2.0-alpha",
+      "vm": "github:jspm/nodelibs-vm@^0.2.0-alpha"
     },
     "overrides": {
+      "github:angular-ui/ui-router@0.2.18": {
+        "directories": {
+          "lib": "release"
+        },
+        "format": "cjs",
+        "main": "angular-ui-router",
+        "registry": "jspm",
+        "dependencies": {
+          "angular": "^1.3.2"
+        },
+        "meta": {
+          "angular-ui-router.js": {
+            "deps": [
+              "angular"
+            ],
+            "format": "global"
+          }
+        }
+      },
+      "github:angular/bower-angular-animate@1.5.6": {
+        "main": "angular-animate",
+        "registry": "jspm",
+        "dependencies": {
+          "angular": "^1.3.0"
+        },
+        "meta": {
+          "angular-animate.js": {
+            "deps": [
+              "angular"
+            ],
+            "format": "global"
+          }
+        }
+      },
+      "github:angular/bower-angular-aria@1.5.6": {
+        "main": "angular-aria",
+        "registry": "jspm",
+        "dependencies": {
+          "angular": "^1.3.0"
+        },
+        "meta": {
+          "angular-aria.js": {
+            "deps": [
+              "angular"
+            ],
+            "format": "global"
+          }
+        }
+      },
+      "github:angular/bower-angular-messages@1.5.6": {
+        "main": "angular-messages",
+        "registry": "jspm",
+        "dependencies": {
+          "angular": "^1.5.0"
+        },
+        "meta": {
+          "angular-messages.js": {
+            "deps": [
+              "angular"
+            ],
+            "format": "global"
+          }
+        }
+      },
+      "github:angular/bower-angular-mocks@1.5.6": {
+        "main": "angular-mocks",
+        "registry": "jspm",
+        "dependencies": {
+          "angular": "github:angular/bower-angular@^1.3.0"
+        },
+        "meta": {
+          "angular-mocks.js": {
+            "deps": [
+              "angular"
+            ],
+            "format": "global"
+          }
+        }
+      },
+      "github:angular/bower-angular@1.5.6": {
+        "main": "angular",
+        "meta": {
+          "angular.js": {
+            "exports": "angular",
+            "format": "global"
+          }
+        }
+      },
+      "npm:angular@1.5.6": {
+        "format": "global",
+        "jspmNodeConversion": false,
+        "main": "angular",
+        "meta": {
+          "angular.js": {
+            "exports": "angular",
+            "format": "global"
+          }
+        }
+      },
       "npm:babel-runtime@5.8.38": {
         "main": false,
         "dependencies": {},
@@ -97,22 +215,52 @@
           "examples/textures"
         ],
         "format": "global",
-        "shim": {
-          "build/three": {
-            "exports": "THREE"
+        "meta": {
+          "build/three.js": {
+            "exports": "THREE",
+            "format": "global"
           }
         }
       },
       "github:inspirit/jsfeat@0.0.8": {
-        "main": "build/jsfeat",
         "ignore": [
           "compile",
           "src"
         ],
         "format": "global",
-        "shim": {
-          "build/jsfeat": {
-            "exports": "jsfeat"
+        "meta": {
+          "build/jsfeat.js": {
+            "exports": "jsfeat",
+            "format": "global"
+          }
+        }
+      },
+      "npm:d3@3.5.17": {
+        "meta": {
+          "d3.js": {
+            "exports": "d3",
+            "format": "global"
+          }
+        }
+      },
+      "npm:inherits@2.0.1": {
+        "ignore": [
+          "test.js"
+        ]
+      },
+      "npm:jquery@2.2.4": {
+        "format": "amd"
+      },
+      "npm:leaflet@0.7.7": {
+        "jspmNodeConversion": false
+      },
+      "npm:sass.js@0.9.10": {
+        "map": {
+          "ws": "@empty"
+        },
+        "meta": {
+          "dist/sass.worker.js": {
+            "format": "global"
           }
         }
       }
