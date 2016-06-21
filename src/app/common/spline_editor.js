@@ -2,7 +2,6 @@
  * Created by Miguel Marques on 20/06/2016.
  */
 import d3 from 'd3';
-import template from './spline_editor.tpl.html!text';
 import { deepCopy } from '../utils/utils';
 
 class SplineEditor {
