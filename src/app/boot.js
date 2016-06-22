@@ -40,5 +40,5 @@ angular
         $mdThemingProvider.theme('default').primaryPalette('teal');
       });
       
-    angular.bootstrap( body, [app.name], { strictDi: true });
+    angular.bootstrap( body, [app.name], { strictDi: false });
   });
