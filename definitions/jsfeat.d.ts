@@ -233,5 +233,5 @@ declare namespace jsfeat {
 }
 
 declare module 'jsfeat' {
-    export = jsfeat;
+    export default jsfeat;
 }
