@@ -5,7 +5,7 @@
 import angular from 'angular';
 import _ from 'underscore';
 import THREE from 'three';
-import 'three-trackball-controls';
+import 'three-orbit-controls'
 
 @Inject('$element', '$scope', '$timeout')
 class TerrainViewerController
@@ -58,7 +58,8 @@ class TerrainViewerController
       side: THREE.DoubleSide
     });
 
-    this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
+    // this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
+    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
 
     this.hemisphereLight = new THREE.HemisphereLight(0xFFFFBB, 0x080800, 1);
 
