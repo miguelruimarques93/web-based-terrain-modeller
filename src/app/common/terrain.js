@@ -4,42 +4,40 @@ import { isPowerOf2 } from '../utils/math_utils';
 
 class Terrain {
   constructor() {
-    this._deterministic_matrix_updates = 0;
-    this._normal_matrix_updates = 0;
+    this._height_map_updates = 0;
+    this._normal_map_updates = 0;
 
-    this.$deterministic_matrix = null;
-    this.$normal_matrix = null;
-
-    this.normal_map_strength = 0.01;
+    this.$height_map = null;
+    this.$normal_map = null;
   }
 
   /**
    * @param {jsfeat.matrix_t} val
    */
-  set deterministic_matrix(val) {
-    console.log("set deterministic_matrix");
+  set height_map(val) {
+    console.log("set height_map");
     require(val.cols == val.rows && isPowerOf2(val.cols), "deterministic matrix needs to be square and the side needs to be a power of 2.");
-    this.$deterministic_matrix = val;
-    this._deterministic_matrix_updates++;
+    this.$height_map = val;
+    this._height_map_updates++;
   }
 
   /**
    * @returns {jsfeat.matrix_t}
    */
-  get deterministic_matrix() { return this.$deterministic_matrix; }
+  get height_map() { return this.$height_map; }
 
   /**
    * @param {jsfeat.matrix_t} val
    */
-  set normal_matrix(val) {
-    this.$normal_matrix = val;
-    this._normal_matrix_updates++;
+  set normal_map(val) {
+    this.$normal_map = val;
+    this._normal_map_updates++;
   }
 
   /**
    * @returns {jsfeat.matrix_t}
    */
-  get normal_matrix() { return this.$normal_matrix; }
+  get normal_map() { return this.$normal_map; }
 
 }
 

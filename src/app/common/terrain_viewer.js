@@ -2,7 +2,7 @@
  * Created by Miguel Marques
  */
 
-import { angular } from 'angular';
+import angular from 'angular';
 import _ from 'underscore';
 import THREE from 'three';
 import 'three-trackball-controls';
@@ -100,20 +100,19 @@ class TerrainViewerController
     console.log("Updating Surface!", `New surface: ${this.$scope.terrain}`);
 
     let terrain = this.$scope.terrain;
-    let data_mat = terrain.deterministic_matrix;
+    let data_mat = terrain.height_map;
 
     if (data_mat === null)
       return;
 
     if (_.has(this, 'plane'))
       this.scene.remove(this.plane);
-
-    if (terrain.normal_matrix !== null) {
+    if (terrain.normal_map !== null) {
       this.surface_material.normalMap = new THREE.Texture(
         new THREE.DataTexture(
-          terrain.normal_matrix.data,
-          terrain.normal_matrix.cols,
-          terrain.normal_matrix.rows,
+          terrain.normal_map.data,
+          terrain.normal_map.cols,
+          terrain.normal_map.rows,
           THREE.RGBAFormat));
     }
 

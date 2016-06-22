@@ -1,5 +1,3 @@
-import 'three-orbit-controls';
-import 'three-trackball-controls';
 import jsfeat from 'jsfeat';
 import _ from 'underscore';
 import imageTemplate from './image_dialog.tpl.html!text';
@@ -104,19 +102,19 @@ class EditorController {
    * @param {jsfeat.matrix_t} normal_map
    */
   set_surface(data_mat, normal_map = undefined) {
-    this.terrain.deterministic_matrix = data_mat;
+    this.terrain.height_map = data_mat;
 
     this.images.push(create_canvas_from_matrix(data_mat));
 
     if (normal_map === undefined) {
       this.normalmapGenerator.from_heightmap_gpu(data_mat).then(((nmap) => {
-        this.terrain.normal_matrix = nmap;
+        this.terrain.normal_map = nmap;
         this.images.push(create_canvas_from_matrix(nmap));
       }).bind(this), () => {
       });
     }
     else {
-      this.terrain.normal_matrix = normal_map;
+      this.terrain.normal_map = normal_map;
       this.images.push(create_canvas_from_matrix(normal_map));
     }
   }
