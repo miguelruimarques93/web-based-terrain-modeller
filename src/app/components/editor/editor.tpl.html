@@ -35,7 +35,7 @@
               </md-menu>
             </md-menu-item>
           </md-menu-content>
-        
+        </md-menu>
       </md-menu-bar>
     </div>
   </div>
@@ -49,11 +49,13 @@
     </md-input-container>
   </md-content>
 
-  <div layout="column" flex><canvas flex /></div>
+  <!--<div layout="column" flex><canvas flex /></div>-->
+  <terrain-viewer layout="column" flex terrain="vm.terrain" />
 
   <spline-editor data="vm.blend_data"></spline-editor>
 
   <md-content layout-padding ng-show="vm.images.length">
+    <md-button class="md-primary" ng-click="vm.remove_all_images()">Remove All</md-button>
     <md-list class="image-list md-3-line">
       <md-list-item ng-repeat="image in vm.images track by $index">     
         <img src="{{image}}" ng-click="vm.show_image($event, image)"/>
