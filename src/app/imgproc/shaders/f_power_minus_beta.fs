@@ -20,7 +20,7 @@ void main()
 
     float f = sqrt(uv.x*uv.x + uv.y*uv.y);
     f = max(f, one_over_width);
-    f = 1.0 / pow(f, u_power);
+    f = 1.0 / pow(abs(f), u_power);
         
     smoothed_frequency = texture(u_input, gl_FragCoord.xy / u_transformSize).xy * f;
 }
