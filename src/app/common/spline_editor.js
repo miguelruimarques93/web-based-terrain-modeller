@@ -4,27 +4,15 @@
 import d3 from 'd3';
 import { deepCopy } from 'web_based_terrain_modeller/utils/utils';
 
-@Inject('$parse')
-class SplineEditor {
+@Inject('$scope', '$element')
+class SplineEditorController
+{
   constructor() {
-    this.restrict = 'E';
-    this.scope = {
-      data: '=data'
-    };
-
     this.bounds_x = [50.0, 250.0];
     this.bounds_y = [10.0, 140.0];
-  }
 
-  compile(tElement) {
-    return this.link.bind(this);
-  }
-
-  link(scope, element) {
-    this.$scope = scope;
-    
-    if (scope.data.points) {
-      this.internal_points = deepCopy(scope.data.points);
+    if (this.$scope.data.points) {
+      this.internal_points = deepCopy(this.$scope.data.points);
 
       for (let i = 0; i < this.internal_points.length; ++i) {
         this.internal_points[i][0] = this.internal_points[i][0] * (this.bounds_x[1] - this.bounds_x[0]) + this.bounds_x[0];
@@ -47,7 +35,7 @@ class SplineEditor {
     this.line = d3.svg.line();
     this.line.interpolate('monotone');
 
-    this.svg = d3.select(element[0]).append('svg');
+    this.svg = d3.select(this.$element[0]).append('svg');
 
     this.svg.append('path')
       .datum(this.internal_points)
@@ -62,7 +50,6 @@ class SplineEditor {
   }
 
   redraw() {
-
     let svg = this.svg;
     svg.select('path').attr('d', this.line);
 
@@ -91,8 +78,8 @@ class SplineEditor {
   }
 
   /*change() {
-    this.redraw();
-  }*/
+   this.redraw();
+   }*/
 
   mousedown(d) {
     this.selected = this.dragged = d;
@@ -187,6 +174,17 @@ class SplineEditor {
   update_scope() {
     this.update_points();
     this.update_tangents();
+  }
+}
+
+@Inject('$parse')
+class SplineEditor {
+  constructor() {
+    this.restrict = 'E';
+    this.scope = {
+      data: '=data'
+    };
+    this.controller = SplineEditorController;
   }
 
   static factory() {
