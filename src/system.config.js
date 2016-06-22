@@ -1,4 +1,5 @@
 SystemJS.config({
+  defaultJSExtensions: true,
   paths: {
     "npm:": "app/vendor/jspm_packages/npm/",
     "github:": "app/vendor/jspm_packages/github/",
@@ -6,12 +7,12 @@ SystemJS.config({
   },
   browserConfig: {
     "paths": {
-      "web-based-terrain-modeller/": "/app/"
+      "web_based_terrain_modeller/": "/app/"
     }
   },
   nodeConfig: {
     "paths": {
-      "web-based-terrain-modeller/": "app/"
+      "web_based_terrain_modeller/": "app/"
     }
   },
   devConfig: {
@@ -566,16 +567,16 @@ SystemJS.config({
     "local:*.json"
   ],
   map: {
-    "fft.js": "local:fft.js@0.0.1",
+    "fft": "local:fft.js@0.0.1",
     "noisejs": "local:noisejs@0.0.1",
     "three-trackball-controls": "local:three-trackball-controls@0.77.0",
-    "angular": "github:angular/bower-angular@1.5.6",
+    "angular": "github:angular/bower-angular@1.5.7",
     "angular-animate": "npm:angular-animate@1.5.6",
     "angular-aria": "npm:angular-aria@1.5.6",
     "angular-filereader": "github:matteosuppo/angular-filereader@1.0.4",
     "angular-leaflet-directive": "npm:angular-leaflet-directive@0.10.0",
-    "angular-material": "npm:angular-material@1.0.8",
-    "angular-messages": "github:angular/bower-angular-messages@1.5.6",
+    "angular-material": "npm:angular-material@1.1.0-rc.5",
+    "angular-messages": "github:angular/bower-angular-messages@1.5.7",
     "angular-mocks": "github:angular/bower-angular-mocks@1.5.6",
     "angular-ui-router": "github:angular-ui/ui-router@0.2.18",
     "assert": "github:jspm/nodelibs-assert@0.2.0-alpha",
@@ -608,27 +609,12 @@ SystemJS.config({
   packages: {
     "github:angular-ui/ui-router@0.2.18": {
       "map": {
-        "angular": "github:angular/bower-angular@1.5.6"
-      }
-    },
-    "github:angular/bower-angular-animate@1.5.6": {
-      "map": {
-        "angular": "github:angular/bower-angular@1.5.6"
-      }
-    },
-    "github:angular/bower-angular-aria@1.5.6": {
-      "map": {
-        "angular": "github:angular/bower-angular@1.5.6"
-      }
-    },
-    "github:angular/bower-angular-messages@1.5.6": {
-      "map": {
-        "angular": "github:angular/bower-angular@1.5.6"
+        "angular": "github:angular/bower-angular@1.5.7"
       }
     },
     "github:angular/bower-angular-mocks@1.5.6": {
       "map": {
-        "angular": "github:angular/bower-angular@1.5.6"
+        "angular": "github:angular/bower-angular@1.5.7"
       }
     },
     "github:jspm/nodelibs-path@0.1.0": {
@@ -657,15 +643,6 @@ SystemJS.config({
       "map": {
         "angular": "npm:angular@1.5.6",
         "leaflet": "npm:leaflet@0.7.7"
-      }
-    },
-    "npm:angular-material@1.0.8": {
-      "map": {
-        "angular": "github:angular/bower-angular@1.5.6",
-        "angular-animate": "github:angular/bower-angular-animate@1.5.6",
-        "angular-aria": "github:angular/bower-angular-aria@1.5.6",
-        "angular-messages": "github:angular/bower-angular-messages@1.5.6",
-        "css": "github:systemjs/plugin-css@0.1.22"
       }
     },
     "npm:asn1.js@4.6.0": {
@@ -980,6 +957,30 @@ SystemJS.config({
         "util-deprecate": "npm:util-deprecate@1.0.2",
         "process-nextick-args": "npm:process-nextick-args@1.0.7",
         "buffer-shims": "npm:buffer-shims@1.0.0"
+      }
+    },
+    "github:angular/bower-angular-aria@1.5.7": {
+      "map": {
+        "angular": "github:angular/bower-angular@1.5.7"
+      }
+    },
+    "github:angular/bower-angular-animate@1.5.7": {
+      "map": {
+        "angular": "github:angular/bower-angular@1.5.7"
+      }
+    },
+    "github:angular/bower-angular-messages@1.5.7": {
+      "map": {
+        "angular": "github:angular/bower-angular@1.5.7"
+      }
+    },
+    "npm:angular-material@1.1.0-rc.5": {
+      "map": {
+        "css": "github:systemjs/plugin-css@0.1.23",
+        "angular": "github:angular/bower-angular@1.5.7",
+        "angular-animate": "github:angular/bower-angular-animate@1.5.7",
+        "angular-aria": "github:angular/bower-angular-aria@1.5.7",
+        "angular-messages": "github:angular/bower-angular-messages@1.5.7"
       }
     }
   }

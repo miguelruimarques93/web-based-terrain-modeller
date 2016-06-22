@@ -1,8 +1,8 @@
 import jsfeat from 'jsfeat';
 import noise from 'noisejs';
-import gpu_matrix from '../imgproc/gpu_matrix';
+import gpu_matrix from 'web_based_terrain_modeller/imgproc/gpu_matrix';
 
-import { FFT, FrequencyFilter } from 'fft.js';
+import { FFT, FrequencyFilter } from 'fft';
 
 function noise2(noise_func) {
   return (x, y, octaves, persistence, lacunarity, base) => {

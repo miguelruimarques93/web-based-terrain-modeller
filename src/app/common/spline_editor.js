@@ -1,8 +1,8 @@
 /**
- * Created by Miguel Marques on 20/06/2016.
+ * Created by Miguel Marques
  */
 import d3 from 'd3';
-import { deepCopy } from '../utils/utils';
+import { deepCopy } from 'web_based_terrain_modeller/utils/utils';
 
 @Inject('$parse')
 class SplineEditor {
