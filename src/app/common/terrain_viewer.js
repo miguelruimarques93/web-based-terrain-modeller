@@ -105,8 +105,6 @@ class TerrainViewerController
     if (data_mat === null)
       return;
 
-    if (_.has(this, 'plane'))
-      this.scene.remove(this.plane);
     if (terrain.normal_map !== null) {
       this.surface_material.normalMap = new THREE.Texture(
         new THREE.DataTexture(
@@ -124,11 +122,15 @@ class TerrainViewerController
       vertices[j + 1] = data[i];
     }
 
-    this.camera.lookAt(new THREE.Vector3(128, 128, 0));
+    // this.camera.lookAt(new THREE.Vector3(128, 128, 0));
 
-    this.plane = new THREE.Mesh(geometry, this.surface_material);
-
-    this.scene.add(this.plane);
+    if (_.has(this, 'plane')) {
+      this.plane.geometry = geometry;
+      // this.plane = new THREE.Mesh(geometry, this.surface_material);
+    } else {
+      this.plane = new THREE.Mesh(geometry, this.surface_material);
+      this.scene.add(this.plane);
+    }
   }
 
   render() {
