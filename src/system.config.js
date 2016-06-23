@@ -1,9 +1,9 @@
 SystemJS.config({
-  defaultJSExtensions: true,
   paths: {
     "npm:": "app/vendor/jspm_packages/npm/",
     "github:": "app/vendor/jspm_packages/github/",
-    "local:": "app/vendor/jspm_packages/local/"
+    "local:": "app/vendor/jspm_packages/local/",
+    "web-based-terrain-modeller/": "app/"
   },
   browserConfig: {
     "paths": {
@@ -549,7 +549,8 @@ SystemJS.config({
     ]
   },
   map: {
-    "babel": "npm:babel-core@5.8.38"
+    "babel": "npm:babel-core@5.8.38",
+    "fft": "local:fft.js@0.0.1"
   },
   packages: {
     "web-based-terrain-modeller": {
@@ -567,7 +568,9 @@ SystemJS.config({
     "local:*.json"
   ],
   map: {
-    "fft": "local:fft.js@0.0.1",
+    "domain": "github:jspm/nodelibs-domain@0.2.0-alpha",
+    "file-saver": "npm:file-saver@1.3.2",
+    "jszip": "npm:jszip@3.0.0",
     "noisejs": "local:noisejs@0.0.1",
     "three-trackball-controls": "local:three-trackball-controls@0.77.0",
     "angular": "github:angular/bower-angular@1.5.7",
@@ -981,6 +984,29 @@ SystemJS.config({
         "angular-animate": "github:angular/bower-angular-animate@1.5.7",
         "angular-aria": "github:angular/bower-angular-aria@1.5.7",
         "angular-messages": "github:angular/bower-angular-messages@1.5.7"
+      }
+    },
+    "npm:jszip@3.0.0": {
+      "map": {
+        "readable-stream": "npm:readable-stream@2.0.6",
+        "pako": "npm:pako@1.0.1",
+        "asap": "npm:asap@2.0.4",
+        "es6-promise": "npm:es6-promise@3.0.2"
+      }
+    },
+    "npm:readable-stream@2.0.6": {
+      "map": {
+        "process-nextick-args": "npm:process-nextick-args@1.0.7",
+        "core-util-is": "npm:core-util-is@1.0.2",
+        "inherits": "npm:inherits@2.0.1",
+        "isarray": "npm:isarray@1.0.0",
+        "string_decoder": "npm:string_decoder@0.10.31",
+        "util-deprecate": "npm:util-deprecate@1.0.2"
+      }
+    },
+    "github:jspm/nodelibs-domain@0.2.0-alpha": {
+      "map": {
+        "domain-browserify": "npm:domain-browser@1.1.7"
       }
     }
   }
