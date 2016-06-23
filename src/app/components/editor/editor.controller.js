@@ -5,7 +5,7 @@ import fourierSynthesisDialogTemplate from './fourier_synthesis_dialog.tpl.html!
 import perlinNoiseDialogTemplate from './perlin_noise_dialog.tpl.html!text';
 import simplexNoiseDialogTemplate from './simplex_noise_dialog.tpl.html!text';
 import {flatten} from 'web_based_terrain_modeller/utils/utils';
-import Terrain from '../../common/Terrain';
+import Terrain from '../../common/terrain';
 /**
  * @param src {jsfeat.matrix_t}
  * @return {HTMLCanvasElement}
