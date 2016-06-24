@@ -37,7 +37,7 @@ class TerrainViewerController
     });
 
     this.camera = new THREE.PerspectiveCamera(
-      45, this.widht / this.height, 0.1, 1000.0
+      45, this.widht / this.height, 0.1, 100000.0
     );
 
     this.scene = new THREE.Scene();
