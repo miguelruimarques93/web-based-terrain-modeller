@@ -43,4 +43,13 @@ function flatten(arr) {
   }, []);
 }
 
-export { setProperty, deepCopy, flatten };
+function uint8ArrayToBase64( bytes ) {
+  let binary = '';
+  let len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode( bytes[ i ] );
+  }
+  return window.btoa( binary );
+}
+
+export { setProperty, deepCopy, flatten, uint8ArrayToBase64 };
