@@ -52,7 +52,9 @@
   <!--<div layout="column" flex><canvas flex /></div>-->
   <terrain-viewer layout="column" flex terrain="vm.terrain" />
 
-  <spline-editor data="vm.blend_data"></spline-editor>
+          <spline-editor
+              ng-model="blend.mapping_data">
+          </spline-editor>
 
   <md-content layout-padding ng-show="vm.images.length">
     <md-button class="md-primary" ng-click="vm.remove_all_images()">Remove All</md-button>
