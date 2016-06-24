@@ -1,48 +1,13 @@
 import jsfeat from 'jsfeat';
 import _ from 'underscore';
 import imageTemplate from './image_dialog.tpl.html!text';
-import fourierSynthesisDialogTemplate from './fourier_synthesis_dialog.tpl.html!text';
-import perlinNoiseDialogTemplate from './perlin_noise_dialog.tpl.html!text';
-import simplexNoiseDialogTemplate from './simplex_noise_dialog.tpl.html!text';
 import {flatten} from 'web_based_terrain_modeller/utils/utils';
 import Terrain from '../../common/terrain';
-/**
- * @param src {jsfeat.matrix_t}
- * @return {HTMLCanvasElement}
- */
-function create_canvas_from_matrix(src, mult = 1.0) {
-  var canvas = document.createElement('canvas');
-
-  canvas.width = src.cols;
-  canvas.height = src.rows;
-
-  canvas.style.width = src.cols + 'px';
-  canvas.style.height = src.rows + 'px';
-
-  var context = canvas.getContext('2d');
-  var imageData = context.getImageData(0, 0, src.cols, src.rows);
-  var data = imageData.data;
-  var src_buffer = src.data;
-  var incr = src.channel;
-
-  for (var i = 0, j = 0; i < data.length; i += 4, j += incr) {
-    data[i] = src_buffer[j] * mult;
-
-    if (incr >= 3) {
-      data[i + 1] = src_buffer[j + 1] * mult;
-      data[i + 2] = src_buffer[j + 2] * mult;
-    } else {
-      data[i + 1] = src_buffer[j] * mult;
-      data[i + 2] = src_buffer[j] * mult;
-    }
-
-    data[i + 3] = 255;
-  }
-
-  context.putImageData(imageData, 0, 0);
-
-  return canvas.toDataURL();
-}
+import { TerrainFile, RandomGenerationMethod } from '../../common/terrain_file';
+import * as image_utils from '../../utils/image_utils';
+import { saveAs } from 'file-saver';
+import { assert } from '../../utils/assert';
+import { convert_base64_to_matrix } from '../../utils/image_utils';
 
 @Inject(
   '$mdDialog',
@@ -64,10 +29,21 @@ class EditorController {
     this.init_scope();
   }
 
+  is_random_method_fourier() {
+    return this.$scope.random_method == RandomGenerationMethod.FourierSynthesis.ordinal;
+  }
+
+  is_random_method_perlin_noise() {
+    return this.$scope.random_method == RandomGenerationMethod.PerlinNoise.ordinal;
+  }
+
+  is_random_method_simplex_noise() {
+    return this.$scope.random_method == RandomGenerationMethod.SimplexNoise.ordinal;
+  }
+
   init_scope() {
-    this.blend_data = {
-      points: [[0.0, 0.0], [0.25, 0.25], [0.75, 0.75], [1.0, 1.0]]
-    };
+    this.$scope.random_methods = RandomGenerationMethod.enumValues;
+    this.$scope.random_method = RandomGenerationMethod.None.ordinal;
 
     this.$scope.fourier_synthesis = {
       power: 2.4
@@ -90,7 +66,10 @@ class EditorController {
     };
 
     this.$scope.blend = {
-      strength: 100
+      strength: 100,
+      mapping_data: {
+        points: [[0.0, 0.0], [0.25, 0.25], [0.75, 0.75], [1.0, 1.0]]
+      }
     };
 
     this.terrain = new Terrain();
@@ -104,144 +83,63 @@ class EditorController {
   set_surface(data_mat, normal_map = undefined) {
     this.terrain.height_map = data_mat;
 
-    this.images.push(create_canvas_from_matrix(data_mat));
+    this.images.push(image_utils.convert_matrix_to_base64(data_mat));
 
     if (normal_map === undefined) {
       this.normalmapGenerator.from_heightmap_gpu(data_mat).then(((nmap) => {
         this.terrain.normal_map = nmap;
-        this.images.push(create_canvas_from_matrix(nmap));
+        this.images.push(image_utils.convert_matrix_to_base64(nmap));
       }).bind(this), () => {
       });
     }
     else {
       this.terrain.normal_map = normal_map;
-      this.images.push(create_canvas_from_matrix(normal_map));
+      this.images.push(image_utils.convert_matrix_to_base64(normal_map));
     }
   }
 
   openFile(file) {
     if (file !== null) {
-      this.heightmapReader.from_file(file, this.$scope).then((data_mat => {
+      this.heightmapReader.from_file(file, this.$scope).then(data_mat => {
         this.deterministic_mat = data_mat;
         this.set_surface(this.deterministic_mat);
 
-      }).bind(this));
+      });
     }
   }
 
-  random_perlin_surface_(ev, width = 256, height = 256) {
-    return this.$q(((resolve, reject) => {
-      this.$mdDialog.show({
-        template: perlinNoiseDialogTemplate,
-        targetEvent: ev,
-        scope: this.$scope,
-        preserveScope: true,
-        controller: ($scope) => {
-          $scope.cancel = (() => {
-            this.$mdDialog.cancel();
-          }).bind(this);
-          $scope.confirm = (() => {
-            this.$mdDialog.hide();
-          }).bind(this);
-        },
-        clickOutsideToClose: false
-      }).then(
-        (() => {
-          let start = performance.now();
-          this.randomSurfaceGenerator.generate_surface_perlin_noise_gpu(
-            width, height,
-            this.$scope.perlin_noise.frequency,
-            this.$scope.perlin_noise.octaves,
-            this.$scope.perlin_noise.persistence,
-            this.$scope.perlin_noise.lacunarity,
-            this.$scope.perlin_noise.base
-          ).then((data_mat) => {
-            console.log(`Perlin noise synthesis done in ${performance.now() - start} ms`);
-            resolve(data_mat);
-          });
-        }).bind(this),
-        () => reject()
-      );
-    }).bind(this));
+  openZip(file) {
+    if (file !== null) {
+      TerrainFile.load_from_file(file).then(t_file => {
+        convert_base64_to_matrix(t_file.result_image).then( data_mat => {
+          // debugger;
+          this.set_surface(data_mat);
+        });
+      });
+    }
   }
 
-  random_perlin_surface(ev) {
-    this.random_perlin_surface_(ev).then(this.set_surface.bind(this));
+  canSave() {
+    return _.has(this, 'deterministic_mat');
   }
 
-  random_simplex_surface_(ev, width = 256, height = 256) {
-    return this.$q(((resolve, reject) => {
-      this.$mdDialog.show({
-        template: simplexNoiseDialogTemplate,
-        targetEvent: ev,
-        scope: this.$scope,
-        preserveScope: true,
-        controller: ($scope) => {
-          $scope.cancel = (() => {
-            this.$mdDialog.cancel();
-          }).bind(this);
-          $scope.confirm = (() => {
-            this.$mdDialog.hide();
-          }).bind(this);
-        },
-        clickOutsideToClose: false
-      }).then(
-        (() => {
-          let start = performance.now();
-          this.randomSurfaceGenerator.generate_surface_simplex_noise_gpu(
-            width, height,
-            this.$scope.simplex_noise.frequency,
-            this.$scope.simplex_noise.octaves,
-            this.$scope.simplex_noise.persistence,
-            this.$scope.simplex_noise.lacunarity,
-            this.$scope.simplex_noise.base
-          ).then((data_mat) => {
-            console.log(`Simplex noise synthesis done in ${performance.now() - start} ms`);
-            resolve(data_mat);
-          });
-        }).bind(this),
-        () => reject()
-      );
-    }).bind(this));
-  }
+  saveCurrent() {
+    assert(this.canSave(), 'saveCurrent called even though there is nothing to save.');
 
-  random_simplex_surface(ev) {
-    this.random_simplex_surface_(ev).then(this.set_surface.bind(this));
-  }
+    let orig = this.deterministic_mat;
+    let result = orig;
 
-  random_fourier_surface_(ev, width = 256, height = 256) {
+    if (_.has(this, 'result_matrix')) {
+      result = this.result_matrix;
+    }
 
-    return this.$q(((resolve, reject) => {
-      this.$mdDialog.show({
-        template: fourierSynthesisDialogTemplate,
-        targetEvent: ev,
-        scope: this.$scope,
-        preserveScope: true,
-        controller: ($scope) => {
-          $scope.cancel = (() => {
-            this.$mdDialog.cancel();
-          }).bind(this);
-          $scope.confirm = (() => {
-            this.$mdDialog.hide();
-          }).bind(this);
-        },
-        clickOutsideToClose: false
-      }).then(
-        (() => {
-          let start = performance.now();
-          this.randomSurfaceGenerator.generate_surface_fourier_synthesis_gpu(width, height, this.$scope.fourier_synthesis.power)
-            .then((data_mat) => {
-              console.log(`Fourier Synthesis done in ${performance.now() - start} ms`);
-              resolve(data_mat);
-            });
-        }).bind(this),
-        () => reject()
-      );
-    }).bind(this));
-  }
+    let file = new TerrainFile();
+    file.original_matrix = orig;
+    file.result_matrix = result;
 
-  random_fourier_surface(ev) {
-    this.random_fourier_surface_(ev).then(this.set_surface.bind(this));
+    file.get_blob().then(glob => {
+      saveAs(glob, 'project.zip');
+    });
   }
 
   remove_image(index) {
@@ -280,7 +178,6 @@ class EditorController {
 
     let g_random_fft = gpu.compute_fft(g_random, true);
     let g_random_fft_blur = gpu.blur(g_random_fft, this.$scope.blend.strength);
-
     let g_random_blur = gpu.compute_fft(g_random_fft_blur, false);
 
     let g_random_details = gpu.subtract(g_random, g_random_blur);
@@ -293,7 +190,7 @@ class EditorController {
 
     // TODO: Check blend_data
 
-    let g_mapped_norm_deterministic = gpu.map_hermite_spline(g_norm_deterministic, flatten(this.blend_data.points), this.blend_data.tangents);
+    let g_mapped_norm_deterministic = gpu.map_hermite_spline(g_norm_deterministic, flatten(this.$scope.blend.mapping_data.points), this.$scope.blend.mapping_data.tangents);
 
     let g_scaled_random_details = gpu.multiply(g_random_details, g_mapped_norm_deterministic);
 
@@ -323,56 +220,92 @@ class EditorController {
 
     console.log(`Blending done in ${performance.now() - start} ms`);
 
+    this.result_matrix = random_mat;
     this.set_surface(random_mat, normal_map);
   }
 
-  add_perlin_detail(ev) {
-    if (!_.has(this, 'deterministic_mat')) {
-      this.$mdDialog.show(this.$mdDialog.alert()
-        .title("Error")
-        .textContent('Cannot add detail without deterministic surface.')
-        .ok('Ok')
-        .targetEvent(ev)
-      );
-      return;
+  generate_random_fourier_surface(width, height) {
+    return this.randomSurfaceGenerator.generate_surface_fourier_synthesis_gpu(width, height, this.$scope.fourier_synthesis.power);
+  }
+
+  generate_random_perlin_surface(width, height) {
+    return this.randomSurfaceGenerator.generate_surface_perlin_noise_gpu(
+      width, height,
+      this.$scope.perlin_noise.frequency,
+      this.$scope.perlin_noise.octaves,
+      this.$scope.perlin_noise.persistence,
+      this.$scope.perlin_noise.lacunarity,
+      this.$scope.perlin_noise.base
+    );
+  }
+
+  generate_random_simplex_surface(width, height) {
+    return this.randomSurfaceGenerator.generate_surface_simplex_noise_gpu(
+      width, height,
+      this.$scope.simplex_noise.frequency,
+      this.$scope.simplex_noise.octaves,
+      this.$scope.simplex_noise.persistence,
+      this.$scope.simplex_noise.lacunarity,
+      this.$scope.simplex_noise.base
+    );
+  }
+
+  generate_random_surface(width, height) {
+    switch (parseInt(this.$scope.random_method)) {
+      case RandomGenerationMethod.FourierSynthesis.ordinal:
+        return this.generate_random_fourier_surface(width, height);
+      case RandomGenerationMethod.PerlinNoise.ordinal:
+        return this.generate_random_perlin_surface(width, height);
+      case RandomGenerationMethod.SimplexNoise.ordinal:
+        return this.generate_random_simplex_surface(width, height);
     }
-
-    this.random_perlin_surface_(ev, this.deterministic_mat.cols, this.deterministic_mat.rows).then(this.blend_.bind(this));
   }
 
-  add_simplex_detail(ev) {
-    if (!_.has(this, 'deterministic_mat')) {
-      this.$mdDialog.show(this.$mdDialog.alert()
-        .title("Error")
-        .textContent('Cannot add detail without deterministic surface.')
-        .ok('Ok')
-        .targetEvent(ev)
-      );
+  can_generate() {
+    return this.$scope.random_method != RandomGenerationMethod.None.ordinal;
+  }
+
+  generate_surface(ev) {
+    // TODO: Make Dimensions available in the interface
+    let width = 256;
+    let height = 256;
+
+    let start = performance.now();
+    this.generate_random_surface(width, height)
+      .then(data_mat => {
+        console.log(`${RandomGenerationMethod.enumValues[this.$scope.random_method].name} done in ${performance.now() - start} ms`);
+        return data_mat;
+      })
+      .then(this.set_surface.bind(this));
+  }
+
+  can_add_detail() {
+    return _.has(this, 'deterministic_mat') && this.$scope.random_method != RandomGenerationMethod.None.ordinal;
+  }
+
+  add_detail() {
+    if (!this.detail_watch)
       return;
-    }
 
-    this.random_simplex_surface_(ev, this.deterministic_mat.cols, this.deterministic_mat.rows).then(this.blend_.bind(this));
+    let width = this.deterministic_mat.cols;
+    let height = this.deterministic_mat.rows;
+
+    debugger;
+
+    let start = performance.now();
+    this.generate_random_surface(width, height)
+      .then(data_mat => {
+        console.log(`${RandomGenerationMethod.enumValues[this.$scope.random_method].name} done in ${performance.now() - start} ms`);
+        return data_mat;
+      })
+      .then(this.blend_.bind(this));
   }
 
-  add_fourier_detail(ev) {
-    if (!_.has(this, 'deterministic_mat')) {
-      this.$mdDialog.show(this.$mdDialog.alert()
-        .title("Error")
-        .textContent('Cannot add detail without deterministic surface.')
-        .ok('Ok')
-        .targetEvent(ev)
-      );
-      return;
-    }
-
-    this.random_fourier_surface_(ev, this.deterministic_mat.cols, this.deterministic_mat.rows).then(this.blend_.bind(this));
+  enable_detail() {
+    this.detail_watch = true;
+    this.add_detail();
   }
 
-  closeAllMenus() {
-    /*this.$mdMenu.hide(null, {closeAll: true});
-    var toolbar = this.$element.find('md-toolbar');
-    toolbar.get(0).style.cssText = toolbar.data('md-restore-style') || '';*/
-  }
 }
 
 export default EditorController;
