@@ -15,6 +15,7 @@ class SplineEditorController
 
     this.ngModel.$render = () => {
       this.calculate_internal_points();
+      this.svg.select('path').datum(this.internal_points);
       this.redraw();
     };
 
