@@ -42,6 +42,8 @@ class EditorController {
   }
 
   init_scope() {
+    this.$scope.surface_size = 256;
+
     this.$scope.random_methods = RandomGenerationMethod.enumValues;
     this.$scope.random_method = RandomGenerationMethod.None.ordinal;
 
@@ -267,8 +269,8 @@ class EditorController {
 
   generate_surface(ev) {
     // TODO: Make Dimensions available in the interface
-    let width = 256;
-    let height = 256;
+    let width = parseInt(this.$scope.surface_size);
+    let height = width;
 
     let start = performance.now();
     this.generate_random_surface(width, height)
