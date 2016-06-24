@@ -71,7 +71,9 @@ class EditorController {
       strength: 100,
       mapping_data: {
         points: [[0.0, 0.0], [0.25, 0.25], [0.75, 0.75], [1.0, 1.0]]
-      }
+      },
+      minimum: 0,
+      maximum: 255
     };
 
     this.terrain = new Terrain();
@@ -198,7 +200,11 @@ class EditorController {
 
     let g_detailed = gpu.add(g_deterministic, g_scaled_random_details);
     let g_normalized_detailed = gpu.normalize(g_detailed);
-    let g_result = gpu.multiply(g_normalized_detailed, 255);
+
+    let g_result_1 = gpu.multiply(g_normalized_detailed, this.$scope.blend.maximum - this.$scope.blend.minimum);
+    let g_result = gpu.add(g_result_1, this.$scope.blend.minimum);
+
+
     let g_u8_result = gpu.convert_to(g_result, jsfeat.U8_t);
     let g_normal_map = gpu.normalMap(g_u8_result);
 
@@ -216,6 +222,7 @@ class EditorController {
     g_scaled_random_details.destroy();
     g_detailed.destroy();
     g_normalized_detailed.destroy();
+    g_result_1.destroy();
     g_result.destroy();
     g_u8_result.destroy();
     g_normal_map.destroy();
@@ -287,6 +294,9 @@ class EditorController {
 
   add_detail() {
     if (!this.detail_watch)
+      return;
+
+    if (this.$scope.settingsForm.$invalid)
       return;
 
     let width = this.deterministic_mat.cols;

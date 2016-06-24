@@ -30,12 +30,12 @@ class HeightmapReaderService {
           let imgd = context.getImageData(0, 0, width, height);
           let pix = imgd.data;
           
-          var data_mat = new jsfeat.matrix_t(width, height, jsfeat.U8C1_t);
-          var data = data_mat.buffer.u8;
+          let data_mat = new jsfeat.matrix_t(width, height, jsfeat.U8C1_t);
+          let data = data_mat.buffer.u8;
           
-          var j=0;
-          for (var i = 0, n = pix.length; i < n; i += (4)) {
-              var all = pix[i]+pix[i+1]+pix[i+2];
+          let j=0;
+          for (let i = 0, n = pix.length; i < n; i += (4)) {
+              let all = pix[i]+pix[i+1]+pix[i+2];
               data[j++] = all/3;
           }
           

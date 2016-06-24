@@ -13,7 +13,7 @@ export default angular.module('app.common', [])
   .directive(terrain_viewer.directive_name, terrain_viewer.factory)
   .factory('$exceptionHandler', function ($log, $injector) {
     'ngInject';
-    var $mdDialog;
+    let $mdDialog;
 
     return function myExceptionHandler(exception, cause) {
       $mdDialog = $mdDialog || $injector.get('$mdDialog');

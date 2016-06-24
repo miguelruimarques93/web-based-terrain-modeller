@@ -23,6 +23,7 @@ import fs_normalize from './_shaders/normalize.fs!text';
 import fs_add from './_shaders/add.fs!text';
 import fs_subtract from './_shaders/subtract.fs!text';
 import fs_multiply from './_shaders/multiply.fs!text';
+import fs_add_im from './_shaders/add_im.fs!text';
 import fs_multiply_im from './_shaders/multiply_im.fs!text';
 import fs_divide_im from './_shaders/divide_im.fs!text';
 import fs_normal_map from './_shaders/normal_map.fs!text';
@@ -691,7 +692,7 @@ class gpu
    * @param result {gpu_matrix}
    * @returns {gpu_matrix}
    */
-  add(matrix_a, matrix_b, result = undefined)
+  add_(matrix_a, matrix_b, result = undefined)
   {
     require(matrix_a.cols == matrix_b.cols || matrix_a.rows == matrix_b.rows || matrix_a.channel == matrix_b.channel, "Cannot add matrices of different shapes.");
     require(matrix_a.type == matrix_b.type, "Cannot add matrices of different types.");
@@ -817,6 +818,27 @@ class gpu
    * @param result {gpu_matrix}
    * @returns {gpu_matrix}
    */
+  add_im_(matrix_a, value, result = undefined)
+  {
+    let shaderProgram = undefined;
+    switch (matrix_a.type)
+    {
+      case jsfeat.U8_t: shaderProgram = this.u8AddImShaderProgram; break;
+      case jsfeat.F32_t: shaderProgram = this.f32AddImShaderProgram; break;
+      case jsfeat.S32_t: shaderProgram = this.i32AddImShaderProgram; break;
+    }
+
+    assert(shaderProgram != undefined, "Invalid matrix type.");
+
+    return this._element_wise_operation_im(matrix_a, value, shaderProgram, result);
+  }
+
+  /**
+   * @param matrix_a {gpu_matrix}
+   * @param value {number}
+   * @param result {gpu_matrix}
+   * @returns {gpu_matrix}
+   */
   multiply_im_(matrix_a, value, result = undefined)
   {
     let shaderProgram = undefined;
@@ -831,7 +853,25 @@ class gpu
 
     return this._element_wise_operation_im(matrix_a, value, shaderProgram, result);
   }
-  
+
+  /**
+   * @param matrix_a {gpu_matrix}
+   * @param op_b {gpu_matrix | number}
+   * @param result {gpu_matrix}
+   * @returns {gpu_matrix}
+   */
+  add(matrix_a, op_b, result = undefined)
+  {
+    if (op_b instanceof gpu_matrix)
+    {
+      return this.add_(matrix_a, op_b, result);
+    }
+    else
+    {
+      return this.add_im_(matrix_a, op_b, result);
+    }
+  }
+
   /**
    * @param matrix_a {gpu_matrix}
    * @param op_b {gpu_matrix | number}
@@ -1066,6 +1106,10 @@ class gpu
       ["i32ToF32ShaderProgram", ['I_I32', 'O_F32'], fs_type_conversion],
       ["i32ToU8ShaderProgram", ['I_I32', 'O_U8'], fs_type_conversion],
 
+      ['u8MAddImShaderProgram', ['U8'], fs_add_im],
+      ['f32AddImShaderProgram', ['F32'], fs_add_im],
+      ['i32AddImShaderProgram', ['I32'], fs_add_im],
+
       ['u8AddShaderProgram', ['U8'], fs_add],
       ['f32AddShaderProgram', ['F32'], fs_add],
       ['i32AddShaderProgram', ['I32'], fs_add],
@@ -1124,13 +1168,13 @@ class gpu
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
-    var shader = gl.createShader(shaderType);
+    let shader = gl.createShader(shaderType);
     
     gl.shaderSource(shader, shaderSource);
     gl.compileShader(shader);
     
-    var log = gl.getShaderInfoLog(shader);
-    var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+    let log = gl.getShaderInfoLog(shader);
+    let success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
 
     assert(success, "WebGL Shader Compilation Error: \n" + log);
 
@@ -1152,15 +1196,15 @@ class gpu
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
-    var program = gl.createProgram();
+    let program = gl.createProgram();
     
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
     
     gl.linkProgram(program);
-    
-    var log = gl.getProgramInfoLog(program);
-    var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+
+    let log = gl.getProgramInfoLog(program);
+    let success = gl.getProgramParameter(program, gl.LINK_STATUS);
     assert(success, "WebGL Program Linking Error: \n" + log);
     
     if (log.length > 0)
@@ -1171,10 +1215,10 @@ class gpu
     program.uniformLocations = {};
     
     let numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
-    for (var i = 0; i < numUniforms; ++i)
+    for (let i = 0; i < numUniforms; ++i)
     {
-      var uniform = gl.getActiveUniform(program, i);
-      var loc = gl.getUniformLocation(program, uniform.name);
+      let uniform = gl.getActiveUniform(program, i);
+      let loc = gl.getUniformLocation(program, uniform.name);
       setProperty(program.uniformLocations, uniform.name, loc);
     }
     

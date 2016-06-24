@@ -7,7 +7,7 @@ import jsfeat from 'jsfeat';
 // jsc.integer(1, 11) <-> (2, 2048)
 // jsc.integer(1, 5)  <-> (2, 32)
 
-var powerOf2SizedMatrix = jsc.integer(1, 5).smap(
+let powerOf2SizedMatrix = jsc.integer(1, 5).smap(
   function (power) { 
     let width = Math.pow(2, power);
     let height = width;
@@ -45,12 +45,12 @@ describe('gpu', function () {
           compare: function (actual) {
 
             /* global window */
-            var quiet = window && !(/verbose=true/).test(window.location.search);
+            let quiet = window && !(/verbose=true/).test(window.location.search);
 
-            var r = jsc.check(actual, { quiet: quiet });
+            let r = jsc.check(actual, { quiet: quiet });
 
-            var pass = r === true;
-            var message = "";
+            let pass = r === true;
+            let message = "";
 
             if (pass) {
               message = "Expected property not to hold.";

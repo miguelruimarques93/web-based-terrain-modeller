@@ -17,20 +17,20 @@ class NormalmapGeneratorService {
     
     return this.$q((resolve, reject) => {
       
-      var normalmap = new jsfeat.matrix_t(heightmap_mat.cols, heightmap_mat.rows, jsfeat.U8_t | jsfeat.C3_t);
+      let normalmap = new jsfeat.matrix_t(heightmap_mat.cols, heightmap_mat.rows, jsfeat.U8_t | jsfeat.C3_t);
       
-      var width = heightmap_mat.cols;
-      var height = heightmap_mat.rows;
+      let width = heightmap_mat.cols;
+      let height = heightmap_mat.rows;
       
-      var height_buffer = heightmap_mat.data;
-      var size_height = height_buffer.length;
+      let height_buffer = heightmap_mat.data;
+      let size_height = height_buffer.length;
       
-      var normal_buffer = normalmap.data;
-      var size_normal = normal_buffer.length;
+      let normal_buffer = normalmap.data;
+      let size_normal = normal_buffer.length;
       
-      for (var i = 0, j = 0; i < size_normal && j < size_height; i += 3, ++j)
+      for (let i = 0, j = 0; i < size_normal && j < size_height; i += 3, ++j)
       {
-        var x1, x2, y1, y2;
+        let x1, x2, y1, y2;
         if ( j % width === 0 ) {
           // left edge
           x1 = height_buffer[ j ];

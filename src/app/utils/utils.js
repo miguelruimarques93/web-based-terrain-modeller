@@ -6,9 +6,9 @@
  */
 function setProperty(object, prop, value) 
 {
-  var fields = prop.split(/[\.\[\]]/).filter(elem => elem.length > 0);
-  var tempObj = object;
-  for (var i = 0; i < fields.length - 1; ++i) 
+  let fields = prop.split(/[\.\[\]]/).filter(elem => elem.length > 0);
+  let tempObj = object;
+  for (let i = 0; i < fields.length - 1; ++i)
   {
     if (tempObj[fields[i]] === undefined) 
     {
@@ -21,14 +21,14 @@ function setProperty(object, prop, value)
 
 function deepCopy(obj) {
   if (Object.prototype.toString.call(obj) === '[object Array]') {
-    var out = [], i = 0, len = obj.length;
+    let out = [], i = 0, len = obj.length;
     for ( ; i < len; i++ ) {
       out[i] = deepCopy(obj[i]);
     }
     return out;
   }
   if (typeof obj === 'object') {
-    var out = {}, i;
+    let out = {}, i;
     for ( i in obj ) {
       out[i] = deepCopy(obj[i]);
     }

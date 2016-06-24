@@ -5,9 +5,9 @@ function element_wise_operation(op) {
   return (A, B, C) => {
     require(A.cols == C.cols && A.rows == C.rows, "Cannot operate matrices with different sizes!");
 
-    var a_buffer = A.data;
-    var c_buffer = C.data;
-    var size = A.cols * A.rows;
+    let a_buffer = A.data;
+    let c_buffer = C.data;
+    let size = A.cols * A.rows;
 
     if (typeof B === 'number') {
       for (let i = 0; i < size; ++i) {
@@ -17,7 +17,7 @@ function element_wise_operation(op) {
     else {
       require(A.cols == B.cols && A.rows == B.rows, "Cannot operate matrices with different sizes!");
 
-      var b_buffer = B.data;
+      let b_buffer = B.data;
       for (let i = 0; i < b_buffer.length; ++i) {
         c_buffer[i] = op(a_buffer[i], b_buffer[i]);
       }
@@ -38,15 +38,15 @@ function normalize(src, dest) {
   require(src.channel == jsfeat.C1_t, "src needs to be C1_t");
   require(dest.type | dest.channel == jsfeat.F32C1_t, "dest needs to be F32C1_t");
 
-  var src_buffer = src.data;
+  let src_buffer = src.data;
 
-  var max = _.max(src_buffer);
-  var min = _.min(src_buffer);
+  let max = _.max(src_buffer);
+  let min = _.min(src_buffer);
 
-  var dest_buffer = dest.buffer.f32;
+  let dest_buffer = dest.buffer.f32;
 
-  var size = src.cols * src.rows;
-  for (var i = 0; i < size; ++i) {
+  let size = src.cols * src.rows;
+  for (let i = 0; i < size; ++i) {
     dest_buffer[i] = (src_buffer[i] - min) / (max - min);
   }
 }

@@ -199,7 +199,7 @@ class gpu_matrix {
     /** @type {WebGL2RenderingContext} */
     let gl = this.gl;
     
-    var result = new jsfeat.matrix_t(this.cols, this.rows, this.type | this.channel);
+    let result = new jsfeat.matrix_t(this.cols, this.rows, this.type | this.channel);
     
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.framebuffer);
     gl.readPixels(0, 0, this.cols, this.rows, this._get_gl_format(), this._get_gl_type(), result.data);
