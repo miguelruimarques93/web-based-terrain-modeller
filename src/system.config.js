@@ -568,6 +568,7 @@ SystemJS.config({
     "local:*.json"
   ],
   map: {
+    "enumify": "npm:enumify@1.0.4",
     "domain": "github:jspm/nodelibs-domain@0.2.0-alpha",
     "file-saver": "npm:file-saver@1.3.2",
     "jszip": "npm:jszip@3.0.0",
