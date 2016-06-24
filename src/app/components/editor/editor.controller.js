@@ -1,7 +1,7 @@
 import jsfeat from 'jsfeat';
 import _ from 'underscore';
 import imageTemplate from './image_dialog.tpl.html!text';
-import {flatten} from 'web_based_terrain_modeller/utils/utils';
+import {flatten, deepCopy } from 'web_based_terrain_modeller/utils/utils';
 import Terrain from '../../common/terrain';
 import { TerrainFile, RandomGenerationMethod } from '../../common/terrain_file';
 import * as image_utils from '../../utils/image_utils';
@@ -90,7 +90,7 @@ class EditorController {
     this.images.push(image_utils.convert_matrix_to_base64(data_mat));
 
     if (normal_map === undefined) {
-      this.normalmapGenerator.from_heightmap_gpu(data_mat).then(((nmap) => {
+      this.normalmapGenerator.from_heightmap_gpu(data_mat, 0.01).then(((nmap) => {
         this.terrain.normal_map = nmap;
         this.images.push(image_utils.convert_matrix_to_base64(nmap));
       }).bind(this), () => {
@@ -115,10 +115,26 @@ class EditorController {
   openZip(file) {
     if (file !== null) {
       TerrainFile.load_from_file(file).then(t_file => {
+        convert_base64_to_matrix(t_file.original_image).then( data_mat => {
+          this.deterministic_mat = data_mat;
+        });
         convert_base64_to_matrix(t_file.result_image).then( data_mat => {
-          // debugger;
           this.set_surface(data_mat);
         });
+        this.$scope.random_method = t_file.data.random_method.ordinal;
+        switch (this.$scope.random_method) {
+          case (RandomGenerationMethod.FourierSynthesis.ordinal):
+            this.$scope.fourier_synthesis = deepCopy(t_file.data.random_parameters);
+            break;
+          case (RandomGenerationMethod.PerlinNoise.ordinal):
+            this.$scope.perlin_noise = deepCopy(t_file.data.random_parameters);
+            break;
+          case (RandomGenerationMethod.SimplexNoise.ordinal):
+            this.$scope.simplex_noise = deepCopy(t_file.data.random_parameters);
+            break;
+        }
+
+        this.$scope.blend = deepCopy(t_file.data.blend_parameters);
       });
     }
   }
@@ -130,16 +146,29 @@ class EditorController {
   saveCurrent() {
     assert(this.canSave(), 'saveCurrent called even though there is nothing to save.');
 
-    let orig = this.deterministic_mat;
-    let result = orig;
+    let file = new TerrainFile();
+
+    file.original_matrix = this.deterministic_mat;
 
     if (_.has(this, 'result_matrix')) {
-      result = this.result_matrix;
-    }
+      file.result_matrix = this.result_matrix;
 
-    let file = new TerrainFile();
-    file.original_matrix = orig;
-    file.result_matrix = result;
+      file.data.random_method = RandomGenerationMethod.enumValues[this.$scope.random_method];
+
+      switch (this.$scope.random_method) {
+        case (RandomGenerationMethod.FourierSynthesis.ordinal):
+          file.data.random_parameters = deepCopy(this.$scope.fourier_synthesis);
+          break;
+        case (RandomGenerationMethod.PerlinNoise.ordinal):
+          file.data.random_parameters = deepCopy(this.$scope.perlin_noise);
+          break;
+        case (RandomGenerationMethod.SimplexNoise.ordinal):
+          file.data.random_parameters = deepCopy(this.$scope.simplex_noise);
+          break;
+      }
+
+      file.data.blend_parameters = deepCopy(this.$scope.blend);
+    }
 
     file.get_blob().then(glob => {
       saveAs(glob, 'project.zip');
@@ -206,7 +235,7 @@ class EditorController {
 
 
     let g_u8_result = gpu.convert_to(g_result, jsfeat.U8_t);
-    let g_normal_map = gpu.normalMap(g_u8_result);
+    let g_normal_map = gpu.normalMap(g_u8_result, 0.01);
 
     random_mat = g_result.download();
     let normal_map = g_normal_map.download();
