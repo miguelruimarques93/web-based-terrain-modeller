@@ -8,6 +8,7 @@ import * as image_utils from '../../utils/image_utils';
 import { saveAs } from 'file-saver';
 import { assert } from '../../utils/assert';
 import { convert_base64_to_matrix } from '../../utils/image_utils';
+import BlendingPipeline from '../../common/blending_pipeline';
 
 @Inject(
   '$mdDialog',
@@ -24,6 +25,8 @@ import { convert_base64_to_matrix } from '../../utils/image_utils';
 class EditorController {
 
   constructor() {
+    this.blending_pipeline = new BlendingPipeline(this.gpu);
+    this.blending_pipeline.update_callback = this.result_updated.bind(this);
     this.images = [];
 
     this.init_scope();
@@ -106,6 +109,11 @@ class EditorController {
     if (file !== null) {
       this.heightmapReader.from_file(file, this.$scope).then(data_mat => {
         this.deterministic_mat = data_mat;
+
+        let deterministic_mat_f32 = new jsfeat.matrix_t(this.deterministic_mat.cols, this.deterministic_mat.rows, this.deterministic_mat.channel | jsfeat.F32_t);
+        this.deterministic_mat.copy_to(deterministic_mat_f32);
+
+        this.blending_pipeline.base_matrix = deterministic_mat_f32;
         this.set_surface(this.deterministic_mat);
 
       });
@@ -117,10 +125,17 @@ class EditorController {
       TerrainFile.load_from_file(file).then(t_file => {
         convert_base64_to_matrix(t_file.original_image).then( data_mat => {
           this.deterministic_mat = data_mat;
+
+          let deterministic_mat_f32 = new jsfeat.matrix_t(this.deterministic_mat.cols, this.deterministic_mat.rows, this.deterministic_mat.channel | jsfeat.F32_t);
+          this.deterministic_mat.copy_to(deterministic_mat_f32);
+
+          this.blending_pipeline.base_matrix = deterministic_mat_f32;
         });
+
         convert_base64_to_matrix(t_file.result_image).then( data_mat => {
           this.set_surface(data_mat);
         });
+
         this.$scope.random_method = t_file.data.random_method.ordinal;
         switch (this.$scope.random_method) {
           case (RandomGenerationMethod.FourierSynthesis.ordinal):
@@ -134,12 +149,18 @@ class EditorController {
             break;
         }
 
-        this.$scope.blend = deepCopy(t_file.data.blend_parameters);
+        // TODO: Set random matrix generator
+
+        this.$scope.blend = deepCopy(t_file.data.blend_parameters); // FIXME: Some values may be erased
+
+        this.blending_pipeline.blend_strength = this.$scope.blend.strength;
+        this.blending_pipeline.mapping_data = this.$scope.blend.mapping_data;
       });
     }
   }
 
   canSave() {
+    // TODO: Check blending pipeline instead
     return _.has(this, 'deterministic_mat');
   }
 
@@ -149,9 +170,11 @@ class EditorController {
     let file = new TerrainFile();
 
     file.original_matrix = this.deterministic_mat;
+    // file.original_matrix = this.blending_pipeline.base_matrix; TODO: To be enabled
 
     if (_.has(this, 'result_matrix')) {
       file.result_matrix = this.result_matrix;
+      // file.result_matrix = this.blending_pipeline.result_matrix; TODO: To be enabled
 
       file.data.random_method = RandomGenerationMethod.enumValues[this.$scope.random_method];
 
@@ -197,71 +220,6 @@ class EditorController {
     });
   }
 
-  blend_(random_mat) {
-    if (_.has(this, 'plane')) {
-      this.scene.remove(this.plane);
-    }
-
-    let start = performance.now();
-
-    /** @type {gpu} */
-    let gpu = this.gpu;
-
-    let g_random = gpu.create_gpu_matrix(random_mat);
-
-    let g_random_fft = gpu.compute_fft(g_random, true);
-    let g_random_fft_blur = gpu.blur(g_random_fft, this.$scope.blend.strength);
-    let g_random_blur = gpu.compute_fft(g_random_fft_blur, false);
-
-    let g_random_details = gpu.subtract(g_random, g_random_blur);
-
-    let deterministic_mat_f32 = new jsfeat.matrix_t(this.deterministic_mat.cols, this.deterministic_mat.rows, this.deterministic_mat.channel | jsfeat.F32_t);
-    this.deterministic_mat.copy_to(deterministic_mat_f32);
-
-    let g_deterministic = gpu.create_gpu_matrix(deterministic_mat_f32);
-    let g_norm_deterministic = gpu.normalize(g_deterministic);
-
-    // TODO: Check blend_data
-
-    let g_mapped_norm_deterministic = gpu.map_hermite_spline(g_norm_deterministic, flatten(this.$scope.blend.mapping_data.points), this.$scope.blend.mapping_data.tangents);
-
-    let g_scaled_random_details = gpu.multiply(g_random_details, g_mapped_norm_deterministic);
-
-    let g_detailed = gpu.add(g_deterministic, g_scaled_random_details);
-    let g_normalized_detailed = gpu.normalize(g_detailed);
-
-    let g_result_1 = gpu.multiply(g_normalized_detailed, this.$scope.blend.maximum - this.$scope.blend.minimum);
-    let g_result = gpu.add(g_result_1, this.$scope.blend.minimum);
-
-
-    let g_u8_result = gpu.convert_to(g_result, jsfeat.U8_t);
-    let g_normal_map = gpu.normalMap(g_u8_result, 0.01);
-
-    random_mat = g_result.download();
-    let normal_map = g_normal_map.download();
-
-    g_random.destroy();
-    g_random_fft.destroy();
-    g_random_fft_blur.destroy();
-    g_random_blur.destroy();
-    g_random_details.destroy();
-    g_deterministic.destroy();
-    g_norm_deterministic.destroy();
-    g_mapped_norm_deterministic.destroy();
-    g_scaled_random_details.destroy();
-    g_detailed.destroy();
-    g_normalized_detailed.destroy();
-    g_result_1.destroy();
-    g_result.destroy();
-    g_u8_result.destroy();
-    g_normal_map.destroy();
-
-    console.log(`Blending done in ${performance.now() - start} ms`);
-
-    this.result_matrix = random_mat;
-    this.set_surface(random_mat, normal_map);
-  }
-
   generate_random_fourier_surface(width, height) {
     return this.randomSurfaceGenerator.generate_surface_fourier_synthesis_gpu(width, height, this.$scope.fourier_synthesis.power);
   }
@@ -303,8 +261,8 @@ class EditorController {
     return this.$scope.random_method != RandomGenerationMethod.None.ordinal;
   }
 
-  generate_surface(ev) {
-    // TODO: Make Dimensions available in the interface
+  generate_surface() {
+
     let width = parseInt(this.$scope.surface_size);
     let height = width;
 
@@ -321,30 +279,55 @@ class EditorController {
     return _.has(this, 'deterministic_mat') && this.$scope.random_method != RandomGenerationMethod.None.ordinal;
   }
 
-  add_detail() {
-    if (!this.detail_watch)
-      return;
+  random_method_changed() {
+    switch (parseInt(this.$scope.random_method)) {
+      case RandomGenerationMethod.FourierSynthesis.ordinal:
+        this.blending_pipeline.random_matrix_generator = this.generate_random_fourier_surface.bind(this);
+        break;
+      case RandomGenerationMethod.PerlinNoise.ordinal:
+        this.blending_pipeline.random_matrix_generator = this.generate_random_perlin_surface.bind(this);
+        break;
+      case RandomGenerationMethod.SimplexNoise.ordinal:
+        this.blending_pipeline.random_matrix_generator = this.generate_random_simplex_surface.bind(this);
+        break;
+      case RandomGenerationMethod.None.ordinal:
+        this.blending_pipeline.random_matrix_generator = undefined;
+        break;
+    }
+  }
 
+  random_parameter_changed() {
     if (this.$scope.settingsForm.$invalid)
       return;
 
-    let width = this.deterministic_mat.cols;
-    let height = this.deterministic_mat.rows;
+    this.blending_pipeline.trigger_random_matrix_generation();
+  }
 
-    debugger;
+  spline_changed() {
+    this.blending_pipeline.hermite_mapping_data = this.$scope.blend.mapping_data;
+  }
 
-    let start = performance.now();
-    this.generate_random_surface(width, height)
-      .then(data_mat => {
-        console.log(`${RandomGenerationMethod.enumValues[this.$scope.random_method].name} done in ${performance.now() - start} ms`);
-        return data_mat;
-      })
-      .then(this.blend_.bind(this));
+  blend_strength_changed() {
+    this.blending_pipeline.blend_strength = this.$scope.blend.strength;
+  }
+
+  result_bounds_changed() {
+    this.blending_pipeline.result_bounds = [this.$scope.blend.minimum, this.$scope.blend.maximum];
+  }
+
+  result_updated() {
+    console.log('result_updated');
+    if (this.detail_watch && this.blending_pipeline.result_matrix && this.blending_pipeline.normal_matrix)
+      this.set_surface(this.blending_pipeline.result_matrix, this.blending_pipeline.normal_matrix);
   }
 
   enable_detail() {
+    this.random_method_changed();
+    this.random_parameter_changed();
+    this.spline_changed();
+    this.blend_strength_changed();
+    this.result_bounds_changed();
     this.detail_watch = true;
-    this.add_detail();
   }
 
 }
