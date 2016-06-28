@@ -219,7 +219,9 @@
           <label>Mapping</label>
           <spline-editor
               ng-change="vm.spline_changed()"
-              ng-model="blend.mapping_data">
+              ng-model="blend.mapping_data"
+              ng-model-options="{ debounce: 100 }"
+          >
           </spline-editor>
         </md-input-container>
         <md-input-container>

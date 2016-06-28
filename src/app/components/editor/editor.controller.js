@@ -108,13 +108,11 @@ class EditorController {
   openFile(file) {
     if (file !== null) {
       this.heightmapReader.from_file(file, this.$scope).then(data_mat => {
-        this.deterministic_mat = data_mat;
+        let data_mat_f32 = new jsfeat.matrix_t(data_mat.cols, data_mat.rows, data_mat.channel | jsfeat.F32_t);
+        data_mat.copy_to(data_mat_f32);
 
-        let deterministic_mat_f32 = new jsfeat.matrix_t(this.deterministic_mat.cols, this.deterministic_mat.rows, this.deterministic_mat.channel | jsfeat.F32_t);
-        this.deterministic_mat.copy_to(deterministic_mat_f32);
-
-        this.blending_pipeline.base_matrix = deterministic_mat_f32;
-        this.set_surface(this.deterministic_mat);
+        this.blending_pipeline.base_matrix = data_mat_f32;
+        this.set_surface(this.blending_pipeline.base_matrix);
 
       });
     }
@@ -124,12 +122,10 @@ class EditorController {
     if (file !== null) {
       TerrainFile.load_from_file(file).then(t_file => {
         convert_base64_to_matrix(t_file.original_image).then( data_mat => {
-          this.deterministic_mat = data_mat;
+          let data_mat_f32 = new jsfeat.matrix_t(data_mat.cols, data_mat.rows, data_mat.channel | jsfeat.F32_t);
+          data_mat.copy_to(data_mat_f32);
 
-          let deterministic_mat_f32 = new jsfeat.matrix_t(this.deterministic_mat.cols, this.deterministic_mat.rows, this.deterministic_mat.channel | jsfeat.F32_t);
-          this.deterministic_mat.copy_to(deterministic_mat_f32);
-
-          this.blending_pipeline.base_matrix = deterministic_mat_f32;
+          this.blending_pipeline.base_matrix = data_mat_f32;
         });
 
         convert_base64_to_matrix(t_file.result_image).then( data_mat => {
@@ -140,16 +136,17 @@ class EditorController {
         switch (this.$scope.random_method) {
           case (RandomGenerationMethod.FourierSynthesis.ordinal):
             this.$scope.fourier_synthesis = deepCopy(t_file.data.random_parameters);
+            this.blending_pipeline.random_matrix_generator = this.generate_random_fourier_surface.bind(this);
             break;
           case (RandomGenerationMethod.PerlinNoise.ordinal):
             this.$scope.perlin_noise = deepCopy(t_file.data.random_parameters);
+            this.blending_pipeline.random_matrix_generator = this.generate_random_perlin_surface().bind(this);
             break;
           case (RandomGenerationMethod.SimplexNoise.ordinal):
             this.$scope.simplex_noise = deepCopy(t_file.data.random_parameters);
+            this.blending_pipeline.random_matrix_generator = this.generate_random_simplex_surface.bind(this);
             break;
         }
-
-        // TODO: Set random matrix generator
 
         this.$scope.blend = deepCopy(t_file.data.blend_parameters); // FIXME: Some values may be erased
 
@@ -160,8 +157,7 @@ class EditorController {
   }
 
   canSave() {
-    // TODO: Check blending pipeline instead
-    return _.has(this, 'deterministic_mat');
+    return this.blending_pipeline.has_base_matrix();
   }
 
   saveCurrent() {
@@ -169,12 +165,10 @@ class EditorController {
 
     let file = new TerrainFile();
 
-    file.original_matrix = this.deterministic_mat;
-    // file.original_matrix = this.blending_pipeline.base_matrix; TODO: To be enabled
+    file.original_matrix = this.blending_pipeline.base_matrix;
 
-    if (_.has(this, 'result_matrix')) {
-      file.result_matrix = this.result_matrix;
-      // file.result_matrix = this.blending_pipeline.result_matrix; TODO: To be enabled
+    if (this.blending_pipeline.has_result_matrix()) {
+      file.result_matrix = this.blending_pipeline.result_matrix;
 
       file.data.random_method = RandomGenerationMethod.enumValues[this.$scope.random_method];
 
@@ -276,7 +270,7 @@ class EditorController {
   }
 
   can_add_detail() {
-    return _.has(this, 'deterministic_mat') && this.$scope.random_method != RandomGenerationMethod.None.ordinal;
+    return this.blending_pipeline.has_base_matrix() && this.$scope.random_method != RandomGenerationMethod.None.ordinal;
   }
 
   random_method_changed() {
