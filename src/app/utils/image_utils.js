@@ -81,4 +81,35 @@ function convert_base64_to_matrix(data_url) {
   });
 }
 
-export { convert_matrix_to_base64, convert_base64_to_matrix };
+/**
+ *
+ * @param {string} data_url
+ * @return {Promise}
+ */
+function convert_base64_to_blob(data_url) {
+  return new Promise( (resolve, reject) => {
+    // debugger;
+    let image = document.createElement('img');
+
+    image.addEventListener('load', (event) => {
+      let width = event.target.width;
+      let height = event.target.height;
+
+      let canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      let context = canvas.getContext('2d');
+
+      let size = width * height;
+
+      context.drawImage(event.target, 0, 0);
+
+      canvas.toBlob(resolve);
+    });
+
+    image.src = data_url;
+  });
+}
+
+export { convert_matrix_to_base64, convert_base64_to_matrix, convert_base64_to_blob };
