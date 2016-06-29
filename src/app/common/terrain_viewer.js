@@ -65,7 +65,7 @@ class TerrainViewerController
 
     this.scene.add(this.hemisphereLight);
 
-    // this.resize();
+    this.resize();
   }
 
   animate() {
