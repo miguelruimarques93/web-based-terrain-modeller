@@ -264,14 +264,18 @@
       </md-content>
 
       <md-content>
-        <md-button ng-click="vm.enable_detail()" ng-disabled="settingsForm.$invalid || !vm.can_add_detail()">
+        <md-button ng-click="vm.start_adding_detail()" ng-disabled="settingsForm.$invalid || !vm.can_add_detail()">
           <span>Add detail</span>
+        </md-button>
+
+        <md-button ng-click="vm.finish_adding_detail()" ng-disabled="!vm.can_finish_adding_detail()">
+          <span>Finish</span>
         </md-button>
       </md-content>
     </form>
   </md-content>
 
-  <md-content layout-padding ng-show="vm.images.length">
+  <!--<md-content layout-padding ng-show="vm.images.length">
     <md-button class="md-primary" ng-click="vm.remove_all_images()">Remove All</md-button>
     <md-list class="image-list md-3-line">
       <md-list-item ng-repeat="image in vm.images track by $index">
@@ -285,7 +289,31 @@
             </md-menu-item>
             <md-menu-item>
               <md-button ng-click="$mdCloseMenu(); vm.remove_image($index)">Remove</md-button>
-              </a></md-menu-item>
+              </md-menu-item>
+          </md-menu-content>
+        </md-menu>
+      </md-list-item>
+    </md-list>
+  </md-content>-->
+
+  <md-content layout-padding ng-show="vm.history.length">
+    <!--<md-button class="md-primary" ng-click="vm.remove_all_images()">Remove All</md-button>-->
+    <md-list class="image-list md-3-line">
+      <md-list-item ng-repeat="terrain_file in vm.history track by $index">
+        <img src="{{terrain_file.snapshot_image}}" ng-click="vm.show_terrain_file($event, terrain_file)"/>
+
+        <md-menu>
+          <md-icon ng-click="$mdOpenMenu()">more_vert</md-icon>
+          <md-menu-content>
+            <md-menu-item>
+              <md-button ng-click="vm.save($event, terrain_file)">Save</md-button>
+            </md-menu-item>
+            <md-menu-item>
+              <md-button ng-click="vm.save_image($event, terrain_file.result_image)">Save Result</md-button>
+            </md-menu-item>
+            <!-- <md-menu-item>
+              <md-button ng-click="$mdCloseMenu(); vm.remove_image($index)">Remove</md-button>
+            </md-menu-item> -->
           </md-menu-content>
         </md-menu>
       </md-list-item>

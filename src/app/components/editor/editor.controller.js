@@ -1,6 +1,7 @@
 import jsfeat from 'jsfeat';
 import _ from 'underscore';
 import imageTemplate from './image_dialog.tpl.html!text';
+import terrainFileTemplate from './terrain_file_dialog.tpl.html!text';
 import {flatten, deepCopy } from 'web_based_terrain_modeller/utils/utils';
 import Terrain from '../../common/terrain';
 import { TerrainFile, RandomGenerationMethod } from '../../common/terrain_file';
@@ -9,6 +10,10 @@ import { saveAs } from 'file-saver';
 import { assert } from '../../utils/assert';
 import { convert_base64_to_matrix } from '../../utils/image_utils';
 import BlendingPipeline from '../../common/blending_pipeline';
+import { Enum } from 'enumify';
+
+class State extends Enum { }
+State.initEnum(['Initial', 'Ready', 'AddingDetail']);
 
 @Inject(
   '$mdDialog',
@@ -28,6 +33,9 @@ class EditorController {
     this.blending_pipeline = new BlendingPipeline(this.gpu);
     this.blending_pipeline.update_callback = this.result_updated.bind(this);
     this.images = [];
+    this.history = [];
+
+    this.state = State.Initial;
 
     this.init_scope();
   }
@@ -90,18 +98,18 @@ class EditorController {
   set_surface(data_mat, normal_map = undefined) {
     this.terrain.height_map = data_mat;
 
-    this.images.push(image_utils.convert_matrix_to_base64(data_mat));
+    // this.images.push(image_utils.convert_matrix_to_base64(data_mat));
 
     if (normal_map === undefined) {
       this.normalmapGenerator.from_heightmap_gpu(data_mat, 0.01).then(((nmap) => {
         this.terrain.normal_map = nmap;
-        this.images.push(image_utils.convert_matrix_to_base64(nmap));
+        // this.images.push(image_utils.convert_matrix_to_base64(nmap));
       }).bind(this), () => {
       });
     }
     else {
       this.terrain.normal_map = normal_map;
-      this.images.push(image_utils.convert_matrix_to_base64(normal_map));
+      // this.images.push(image_utils.convert_matrix_to_base64(normal_map));
     }
   }
 
@@ -114,6 +122,7 @@ class EditorController {
         this.blending_pipeline.base_matrix = data_mat_f32;
         this.set_surface(this.blending_pipeline.base_matrix);
 
+        this.state = State.Ready;
       });
     }
   }
@@ -152,6 +161,8 @@ class EditorController {
 
         this.blending_pipeline.blend_strength = this.$scope.blend.strength;
         this.blending_pipeline.mapping_data = this.$scope.blend.mapping_data;
+
+        this.state = State.Ready;
       });
     }
   }
@@ -192,6 +203,18 @@ class EditorController {
     });
   }
 
+  save(ev, terrain_file) {
+    terrain_file.get_blob().then(glob => {
+      saveAs(glob, 'project.zip');
+    });
+  }
+
+  save_image(ev, image) {
+    image_utils.convert_base64_to_blob(image).then(glob => {
+      saveAs(glob, 'result.png')
+    });
+  }
+
   remove_image(index) {
     this.images.splice(index, 1);
   }
@@ -209,6 +232,20 @@ class EditorController {
       },
       controller: ($scope, image) => {
         $scope.image = image;
+      },
+      clickOutsideToClose: true
+    });
+  }
+
+  show_terrain_file(ev, terrain_file) {
+    this.$mdDialog.show({
+      template: terrainFileTemplate,
+      targetEvent: ev,
+      locals: {
+        file: terrain_file
+      },
+      controller: ($scope, file) => {
+        $scope.file = file;
       },
       clickOutsideToClose: true
     });
@@ -270,7 +307,9 @@ class EditorController {
   }
 
   can_add_detail() {
-    return this.blending_pipeline.has_base_matrix() && this.$scope.random_method != RandomGenerationMethod.None.ordinal;
+    return this.state == State.Ready &&
+           this.blending_pipeline.has_base_matrix() && // TODO: Isn't this redundant?
+           this.$scope.random_method != RandomGenerationMethod.None.ordinal;
   }
 
   random_method_changed() {
@@ -311,17 +350,58 @@ class EditorController {
 
   result_updated() {
     console.log('result_updated');
-    if (this.detail_watch && this.blending_pipeline.result_matrix && this.blending_pipeline.normal_matrix)
+    if (this.state == State.AddingDetail && this.blending_pipeline.result_matrix && this.blending_pipeline.normal_matrix)
       this.set_surface(this.blending_pipeline.result_matrix, this.blending_pipeline.normal_matrix);
   }
 
-  enable_detail() {
+  start_adding_detail() {
+    assert(this.can_add_detail(), "State should be ready.");
+
     this.random_method_changed();
     this.random_parameter_changed();
     this.spline_changed();
     this.blend_strength_changed();
     this.result_bounds_changed();
-    this.detail_watch = true;
+
+    this.state = State.AddingDetail;
+  }
+
+  can_finish_adding_detail() {
+    return this.state == State.AddingDetail;
+  }
+
+  finish_adding_detail() {
+    assert(this.can_finish_adding_detail(), "State should be AddingDetail.");
+
+    let file = new TerrainFile();
+
+    file.snapshot_image = this.$element.find('canvas')[0].toDataURL();
+
+    file.original_matrix = this.blending_pipeline.base_matrix;
+
+    if (this.blending_pipeline.has_result_matrix()) {
+      file.result_matrix = this.blending_pipeline.result_matrix;
+
+      file.data.random_method = RandomGenerationMethod.enumValues[this.$scope.random_method];
+
+      switch (this.$scope.random_method) {
+        case (RandomGenerationMethod.FourierSynthesis.ordinal):
+          file.data.random_parameters = deepCopy(this.$scope.fourier_synthesis);
+          break;
+        case (RandomGenerationMethod.PerlinNoise.ordinal):
+          file.data.random_parameters = deepCopy(this.$scope.perlin_noise);
+          break;
+        case (RandomGenerationMethod.SimplexNoise.ordinal):
+          file.data.random_parameters = deepCopy(this.$scope.simplex_noise);
+          break;
+      }
+
+      file.data.blend_parameters = deepCopy(this.$scope.blend);
+    }
+
+    this.history.push(file);
+
+    this.state = State.Ready;
   }
 
 }

@@ -69,6 +69,7 @@ RandomGenerationMethod.initEnum({
  */
 class TerrainFile {
   constructor() {
+    this.snapshot_image = null;
     this._original_image = null;
     this._result_image = null;
     this.data = {
