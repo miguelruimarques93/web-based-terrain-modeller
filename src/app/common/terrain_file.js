@@ -147,6 +147,7 @@ class TerrainFile {
 
     zip.file("original.png", this.original_image.slice(this.original_image.indexOf(',')), {base64: true});
     zip.file("result.png", this.result_image.slice(this.original_image.indexOf(',')), {base64: true});
+    zip.file("snapshot.png", this.snapshot_image.slice(this.snapshot_image.indexOf(',')), {base64: true});
     zip.file("data.json", JSON.stringify(this.data));
 
     return zip.generateAsync({type: "blob"});
@@ -159,15 +160,17 @@ class TerrainFile {
         Promise.all([
           zip.file('data.json').async('string'),
           zip.file('original.png').async('uint8array'),
-          zip.file('result.png').async('uint8array')])
+          zip.file('result.png').async('uint8array'),
+          zip.file('snapshot.png').async('uint8array')])
           .then(
             values => {
               let t_file = new TerrainFile();
 
-              let [data, orig, res] = values;
+              let [data, orig, res, snapshot] = values;
               t_file.data = JSON.parse(data);
               t_file._original_image = 'data:image/png;base64,' + uint8ArrayToBase64(orig);
               t_file._result_image = 'data:image/png;base64,' + uint8ArrayToBase64(res);
+              t_file.snapshot_image = 'data:image/png;base64,' + uint8ArrayToBase64(snapshot);
 
               resolve(t_file)
             }
