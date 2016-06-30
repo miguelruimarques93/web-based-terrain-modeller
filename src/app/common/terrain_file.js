@@ -126,6 +126,22 @@ class TerrainFile {
     this.data.normal_map_parameters.strength = value;
   }
 
+  is_method_none() {
+    return this.data.random_method.ordinal == RandomGenerationMethod.None.ordinal;
+  }
+
+  is_method_fourier() {
+    return this.data.random_method.ordinal == RandomGenerationMethod.FourierSynthesis.ordinal;
+  }
+
+  is_method_perlin_noise() {
+    return this.data.random_method.ordinal == RandomGenerationMethod.PerlinNoise.ordinal;
+  }
+
+  is_method_simplex_noise() {
+    return this.data.random_method.ordinal == RandomGenerationMethod.SimplexNoise.ordinal;
+  }
+
   get_blob() {
     let zip = new JSZip();
 
