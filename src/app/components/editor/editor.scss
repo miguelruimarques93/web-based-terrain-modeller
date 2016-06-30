@@ -2,21 +2,62 @@ editor {
   display: flex;
   flex-direction: column;
   flex: 1;
-  
+
   canvas {
     background-color: yellow;
   }
-  
+
   .image-list {
     img {
-      width: 64px;
-      height: 64px;
-      cursor: zoom-in;
-    } 
-    
+      width: 4rem;
+      height: 4rem;
+      // cursor: zoom-in;
+
+      &.active {
+        box-sizing: border-box;
+        border: 0.2rem solid green;
+      }
+    }
+
     md-list-item {
       padding-top: 10px;
       padding-bottom: 10px;
+    }
+  }
+
+  md-sidenav {
+    width: auto;
+  }
+
+  #details_panel {
+    transition: 0.2s ease-in all;
+    max-width: 25rem;
+
+    &.ng-hide {
+      max-width: 0;
+    }
+  }
+}
+
+.terrain-file-sidebar {
+  .md-input[disabled] {
+    border-bottom-color: transparent;
+    background-image: none;
+    color: black;
+  }
+
+  .md-button.sidebar-close {
+    margin: 0;
+    padding: 0;
+    min-width: 1.5rem;
+  }
+
+  form {
+    transition: 0.2s ease-in all;
+    max-width: 17.5rem;
+
+    &.ng-hide {
+      max-width: 0;
     }
   }
 }

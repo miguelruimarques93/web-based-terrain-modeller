@@ -24,6 +24,16 @@
             </md-menu-item>
           </md-menu-content>
         </md-menu>
+        <md-menu>
+          <button ng-click="$mdOpenMenu()">
+            Edit
+          </button>
+          <md-menu-content>
+            <md-menu-item>
+              <md-button ng-click="vm.start_adding_detail()" ng-disabled="!vm.can_add_detail()">Add detail</md-button>
+            </md-menu-item>
+          </md-menu-content>
+        </md-menu>
       </md-menu-bar>
     </div>
   </div>
@@ -31,10 +41,7 @@
 
 <div layout="row" flex>
 
-
-  <terrain-viewer layout="column" flex terrain="vm.terrain"></terrain-viewer>
-
-  <md-content layout-padding layout="column">
+  <md-content layout-padding layout="column" ng-show="vm.is_adding_detail_state()" id="details_panel">
     <form name="settingsForm">
       <h4>Generation Phase</h4>
       <md-content layout-padding layout="column">
@@ -264,10 +271,6 @@
       </md-content>
 
       <md-content>
-        <md-button ng-click="vm.start_adding_detail()" ng-disabled="settingsForm.$invalid || !vm.can_add_detail()">
-          <span>Add detail</span>
-        </md-button>
-
         <md-button ng-click="vm.finish_adding_detail()" ng-disabled="!vm.can_finish_adding_detail()">
           <span>Finish</span>
         </md-button>
@@ -275,33 +278,72 @@
     </form>
   </md-content>
 
-  <!--<md-content layout-padding ng-show="vm.images.length">
-    <md-button class="md-primary" ng-click="vm.remove_all_images()">Remove All</md-button>
-    <md-list class="image-list md-3-line">
-      <md-list-item ng-repeat="image in vm.images track by $index">
-        <img src="{{image}}" ng-click="vm.show_image($event, image)"/>
+  <terrain-viewer layout="column" flex terrain="vm.terrain"></terrain-viewer>
 
-        <md-menu>
-          <md-icon ng-click="$mdOpenMenu()">more_vert</md-icon>
-          <md-menu-content>
-            <md-menu-item>
-              <md-button href="{{image}}" download="image{{$index+1}}.png" ng-click="$mdCloseMenu()">Save</md-button>
-            </md-menu-item>
-            <md-menu-item>
-              <md-button ng-click="$mdCloseMenu(); vm.remove_image($index)">Remove</md-button>
-              </md-menu-item>
-          </md-menu-content>
-        </md-menu>
-      </md-list-item>
-    </md-list>
-  </md-content>-->
+  <md-sidenav class="md-sidenav-right terrain-file-sidebar" md-is-locked-open="vm.history.length > 0" layout="row">
+    <md-button ng-click="vm.toggle_history_details()" class="sidebar-close">
+      <md-icon>{{vm.terrain_file_sidebar_open ? 'keyboard_arrow_right' : 'keyboard_arrow_left'}}</md-icon>
+    </md-button>
+    <form ng-show="vm.selected_history_entry != null && vm.terrain_file_sidebar_open">
+      <md-content layout-padding layout="column">
+        <div layout="column">
+          <div layout="column">
+            <label>Original</label>
+            <img src="{{vm.selected_history_entry.original_image}}"/>
+          </div>
 
-  <md-content layout-padding ng-show="vm.history.length">
-    <!--<md-button class="md-primary" ng-click="vm.remove_all_images()">Remove All</md-button>-->
+          <div layout="column">
+            <label>Result</label>
+            <img src="{{vm.selected_history_entry.result_image}}"/>
+          </div>
+        </div>
+        <md-content>
+          <md-input-container>
+            <label>Random Method</label>
+            <input type="text" ng-model="ctrl.file.data.random_method.description" disabled/>
+          </md-input-container>
+          <md-content layout-padding ng-if="!vm.selected_history_entry.is_method_none()">
+            <h4>Parameters:</h4>
+            <md-content layout-padding ng-if="vm.selected_history_entry.is_method_fourier()">
+              <md-input-container>
+                <label>Power </label>
+                <input type="text" ng-model="vm.selected_history_entry.data.random_parameters.power" disabled/>
+              </md-input-container>
+            </md-content>
+            <md-content layout-padding ng-if="vm.selected_history_entry.is_method_perlin_noise() || vm.selected_history_entry.is_method_simplex_noise()">
+              <md-input-container>
+                <label>Frequency </label>
+                <input type="text" ng-model="vm.selected_history_entry.data.random_parameters.frequency" disabled/>
+              </md-input-container>
+              <md-input-container>
+                <label>Octaves </label>
+                <input type="text" ng-model="vm.selected_history_entry.data.random_parameters.octaves" disabled/>
+              </md-input-container>
+              <md-input-container>
+                <label>Persistence </label>
+                <input type="text" ng-model="vm.selected_history_entry.data.random_parameters.persistence" disabled/>
+              </md-input-container>
+              <md-input-container>
+                <label>Lacunarity </label>
+                <input type="text" ng-model="vm.selected_history_entry.data.random_parameters.lacunarity" disabled/>
+              </md-input-container>
+              <md-input-container>
+                <label>Base </label>
+                <input type="text" ng-model="vm.selected_history_entry.data.random_parameters.base" disabled/>
+              </md-input-container>
+            </md-content>
+          </md-content>
+        </md-content>
+
+    </form>
+
+  </md-sidenav>
+  <md-sidenav layout-padding class="md-sidenav-right" md-is-locked-open="vm.history.length > 0">
     <md-list class="image-list md-3-line">
       <md-list-item ng-repeat="terrain_file in vm.history track by $index">
-        <img src="{{terrain_file.snapshot_image}}" ng-click="vm.show_terrain_file($event, terrain_file)"/>
+        <img src="{{terrain_file.snapshot_image}}" ng-class="{active: $index==vm.selected_history_entry_index}" ng-click="vm.select_history_entry($index)"/>
 
+        <!--
         <md-menu>
           <md-icon ng-click="$mdOpenMenu()">more_vert</md-icon>
           <md-menu-content>
@@ -311,12 +353,11 @@
             <md-menu-item>
               <md-button ng-click="vm.save_image($event, terrain_file.result_image)">Save Result</md-button>
             </md-menu-item>
-            <!-- <md-menu-item>
-              <md-button ng-click="$mdCloseMenu(); vm.remove_image($index)">Remove</md-button>
-            </md-menu-item> -->
           </md-menu-content>
         </md-menu>
+        -->
+
       </md-list-item>
     </md-list>
-  </md-content>
+  </md-sidenav>
 </div>

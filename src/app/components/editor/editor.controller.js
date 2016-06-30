@@ -1,7 +1,6 @@
 import jsfeat from 'jsfeat';
 import _ from 'underscore';
 import imageTemplate from './image_dialog.tpl.html!text';
-import terrainFileTemplate from './terrain_file_dialog.tpl.html!text';
 import {flatten, deepCopy } from 'web_based_terrain_modeller/utils/utils';
 import Terrain from '../../common/terrain';
 import { TerrainFile, RandomGenerationMethod } from '../../common/terrain_file';
@@ -35,6 +34,11 @@ class EditorController {
     this.images = [];
     this.history = [];
 
+    this.selected_history_entry = null;
+    this.selected_history_entry_index = -1;
+
+    this.terrain_file_sidebar_open = true;
+
     this.state = State.Initial;
 
     this.init_scope();
@@ -52,11 +56,15 @@ class EditorController {
     return this.$scope.random_method == RandomGenerationMethod.SimplexNoise.ordinal;
   }
 
+  is_adding_detail_state() {
+    return this.state.ordinal == State.AddingDetail.ordinal;
+  }
+
   init_scope() {
     this.$scope.surface_size = 256;
 
-    this.$scope.random_methods = RandomGenerationMethod.enumValues;
-    this.$scope.random_method = RandomGenerationMethod.None.ordinal;
+    this.$scope.random_methods = _.filter(RandomGenerationMethod.enumValues, elem => elem.ordinal != RandomGenerationMethod.None.ordinal);
+    this.$scope.random_method = RandomGenerationMethod.FourierSynthesis.ordinal;
 
     this.$scope.fourier_synthesis = {
       power: 2.4
@@ -149,7 +157,7 @@ class EditorController {
             break;
           case (RandomGenerationMethod.PerlinNoise.ordinal):
             this.$scope.perlin_noise = deepCopy(t_file.data.random_parameters);
-            this.blending_pipeline.random_matrix_generator = this.generate_random_perlin_surface().bind(this);
+            this.blending_pipeline.random_matrix_generator = this.generate_random_perlin_surface.bind(this);
             break;
           case (RandomGenerationMethod.SimplexNoise.ordinal):
             this.$scope.simplex_noise = deepCopy(t_file.data.random_parameters);
@@ -161,6 +169,8 @@ class EditorController {
 
         this.blending_pipeline.blend_strength = this.$scope.blend.strength;
         this.blending_pipeline.mapping_data = this.$scope.blend.mapping_data;
+
+        this.history.push(t_file);
 
         this.state = State.Ready;
       });
@@ -209,6 +219,16 @@ class EditorController {
     });
   }
 
+  select_history_entry(index) {
+    this.selected_history_entry = this.history[index];
+    this.selected_history_entry_index = index;
+    this.terrain_file_sidebar_open = true;
+  }
+
+  toggle_history_details() {
+    this.terrain_file_sidebar_open = !this.terrain_file_sidebar_open;
+  }
+
   save_image(ev, image) {
     image_utils.convert_base64_to_blob(image).then(glob => {
       saveAs(glob, 'result.png')
@@ -232,20 +252,6 @@ class EditorController {
       },
       controller: ($scope, image) => {
         $scope.image = image;
-      },
-      clickOutsideToClose: true
-    });
-  }
-
-  show_terrain_file(ev, terrain_file) {
-    this.$mdDialog.show({
-      template: terrainFileTemplate,
-      targetEvent: ev,
-      locals: {
-        file: terrain_file
-      },
-      controller: ($scope, file) => {
-        $scope.file = file;
       },
       clickOutsideToClose: true
     });
@@ -307,9 +313,9 @@ class EditorController {
   }
 
   can_add_detail() {
-    return this.state == State.Ready &&
-           this.blending_pipeline.has_base_matrix() && // TODO: Isn't this redundant?
-           this.$scope.random_method != RandomGenerationMethod.None.ordinal;
+    return this.state == State.Ready
+        && this.blending_pipeline.has_base_matrix()  // TODO: Isn't this redundant?
+        ;
   }
 
   random_method_changed() {
