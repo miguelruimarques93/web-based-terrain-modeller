@@ -30,6 +30,55 @@ import fs_normal_map from './_shaders/normal_map.fs!text';
 import fs_type_conversion from './_shaders/type_conversions.fs!text';
 import fs_hermite_spline from './_shaders/hermite_spline.fs!text';
 
+var shaders = [
+  ["horizontalFFTShaderProgram", ['HORIZONTAL'], fs_fft],
+  ["verticalFFTShaderProgram", [], fs_fft],
+  ["swapShaderProgram", [], fs_swap],
+  ["gaussianBlurShaderProgram", [], fs_gaussian_blur],
+  ["fPowerMinusBetaShaderProgram", [], fs_f_power_minus_beta],
+  ["magnitudeShaderProgram", [], fs_magnitude],
+  ["realShaderProgram", [], fs_real],
+  ["whiteNoiseShaderProgram", [], fs_white_noise],
+  ["snoise2ShaderProgram", [], fs_simplex_noise],
+  ["pnoise2ShaderProgram", [], fs_perlin_noise],
+  ["minMaxReduceColumnsShaderProgram", [], fs_min_max_reduce_columns],
+  ["minMaxReduceRowsShaderProgram", [], fs_min_max_reduce_rows],
+  ["normalizeShaderProgram", [], fs_normalize],
+  ["normalMapShaderProgram", [], fs_normal_map],
+  ["hermiteSplineShaderProgram", [], fs_hermite_spline],
+
+  ["f32ToU8ShaderProgram", ['I_F32', 'O_U8'], fs_type_conversion],
+  ["f32ToI32ShaderProgram", ['I_F32', 'O_I32'], fs_type_conversion],
+  ["u8ToF32ShaderProgram", ['I_U8', 'O_F32'], fs_type_conversion],
+  ["u8ToI32ShaderProgram", ['I_U8', 'O_I32'], fs_type_conversion],
+  ["i32ToF32ShaderProgram", ['I_I32', 'O_F32'], fs_type_conversion],
+  ["i32ToU8ShaderProgram", ['I_I32', 'O_U8'], fs_type_conversion],
+
+  ['u8MAddImShaderProgram', ['U8'], fs_add_im],
+  ['f32AddImShaderProgram', ['F32'], fs_add_im],
+  ['i32AddImShaderProgram', ['I32'], fs_add_im],
+
+  ['u8AddShaderProgram', ['U8'], fs_add],
+  ['f32AddShaderProgram', ['F32'], fs_add],
+  ['i32AddShaderProgram', ['I32'], fs_add],
+
+  ['u8SubtractShaderProgram', ['U8'], fs_subtract],
+  ['f32SubtractShaderProgram', ['F32'], fs_subtract],
+  ['i32SubtractShaderProgram', ['I32'], fs_subtract],
+
+  ['u8MultiplyShaderProgram', ['U8'], fs_multiply],
+  ['f32MultiplyShaderProgram', ['F32'], fs_multiply],
+  ['i32MultiplyShaderProgram', ['I32'], fs_multiply],
+
+  ['u8MultiplyImShaderProgram', ['U8'], fs_multiply_im],
+  ['f32MultiplyImShaderProgram', ['F32'], fs_multiply_im],
+  ['i32MultiplyImShaderProgram', ['I32'], fs_multiply_im],
+
+  ['u8DivideImShaderProgram', ['U8'], fs_divide_im],
+  ['f32DivideImShaderProgram', ['F32'], fs_divide_im],
+  ['i32DivideImShaderProgram', ['I32'], fs_divide_im],
+];
+
 /**
  * GPU class
  * @property {WebGL2RenderingContext} gl
@@ -1082,57 +1131,14 @@ class gpu
   }
 
   _init_properties() {
-    let properties = [
-      ["horizontalFFTShaderProgram", ['HORIZONTAL'], fs_fft],
-      ["verticalFFTShaderProgram", [], fs_fft],
-      ["swapShaderProgram", [], fs_swap],
-      ["gaussianBlurShaderProgram", [], fs_gaussian_blur],
-      ["fPowerMinusBetaShaderProgram", [], fs_f_power_minus_beta],
-      ["magnitudeShaderProgram", [], fs_magnitude],
-      ["realShaderProgram", [], fs_real],
-      ["whiteNoiseShaderProgram", [], fs_white_noise],
-      ["snoise2ShaderProgram", [], fs_simplex_noise],
-      ["pnoise2ShaderProgram", [], fs_perlin_noise],
-      ["minMaxReduceColumnsShaderProgram", [], fs_min_max_reduce_columns],
-      ["minMaxReduceRowsShaderProgram", [], fs_min_max_reduce_rows],
-      ["normalizeShaderProgram", [], fs_normalize],
-      ["normalMapShaderProgram", [], fs_normal_map],
-      ["hermiteSplineShaderProgram", [], fs_hermite_spline],
+    for (let i = 0; i < shaders.length; ++i) {
+      this._define_shader_program_property(shaders[i][0], shaders[i][1], shaders[i][2]);
+    }
+  }
 
-      ["f32ToU8ShaderProgram", ['I_F32', 'O_U8'], fs_type_conversion],
-      ["f32ToI32ShaderProgram", ['I_F32', 'O_I32'], fs_type_conversion],
-      ["u8ToF32ShaderProgram", ['I_U8', 'O_F32'], fs_type_conversion],
-      ["u8ToI32ShaderProgram", ['I_U8', 'O_I32'], fs_type_conversion],
-      ["i32ToF32ShaderProgram", ['I_I32', 'O_F32'], fs_type_conversion],
-      ["i32ToU8ShaderProgram", ['I_I32', 'O_U8'], fs_type_conversion],
-
-      ['u8MAddImShaderProgram', ['U8'], fs_add_im],
-      ['f32AddImShaderProgram', ['F32'], fs_add_im],
-      ['i32AddImShaderProgram', ['I32'], fs_add_im],
-
-      ['u8AddShaderProgram', ['U8'], fs_add],
-      ['f32AddShaderProgram', ['F32'], fs_add],
-      ['i32AddShaderProgram', ['I32'], fs_add],
-
-      ['u8SubtractShaderProgram', ['U8'], fs_subtract],
-      ['f32SubtractShaderProgram', ['F32'], fs_subtract],
-      ['i32SubtractShaderProgram', ['I32'], fs_subtract],
-
-      ['u8MultiplyShaderProgram', ['U8'], fs_multiply],
-      ['f32MultiplyShaderProgram', ['F32'], fs_multiply],
-      ['i32MultiplyShaderProgram', ['I32'], fs_multiply],
-
-      ['u8MultiplyImShaderProgram', ['U8'], fs_multiply_im],
-      ['f32MultiplyImShaderProgram', ['F32'], fs_multiply_im],
-      ['i32MultiplyImShaderProgram', ['I32'], fs_multiply_im],
-
-      ['u8DivideImShaderProgram', ['U8'], fs_divide_im],
-      ['f32DivideImShaderProgram', ['F32'], fs_divide_im],
-      ['i32DivideImShaderProgram', ['I32'], fs_divide_im],
-    ];
-
-    for (let i = 0; i < properties.length; ++i) {
-      this._define_shader_program_property(properties[i][0], properties[i][1], properties[i][2]);
+  force_load_shaders() {
+    for (let i = 0; i < shaders.length; ++i) {
+      this[shaders[i][0]];
     }
   }
 

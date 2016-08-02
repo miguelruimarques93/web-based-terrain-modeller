@@ -1,0 +1,27 @@
+<md-toolbar class="md-menu-toolbar">
+  <div layout="row">
+    <md-toolbar-filler layout="" layout-align="center center">
+    </md-toolbar-filler>
+
+    <div>
+      <h2 class="md-toolbar-tools">Benchmarks</h2>
+    </div>
+  </div>
+
+  <md-content>
+    <md-button ng-click="vm.runSuite(16)" ng-disabled="calculate">Run 16</md-button>
+    <md-button ng-click="vm.runSuite(32)" ng-disabled="calculate">Run 32</md-button>
+    <md-button ng-click="vm.runSuite(64)" ng-disabled="calculate">Run 64</md-button>
+    <md-button ng-click="vm.runSuite(128)" ng-disabled="calculate">Run 128</md-button>
+    <md-button ng-click="vm.runSuite(256)" ng-disabled="calculate">Run 256</md-button>
+    <md-button ng-click="vm.runSuite(512)" ng-disabled="calculate">Run 512</md-button>
+    <md-button ng-click="vm.runSuite(1024)" ng-disabled="calculate">Run 1024</md-button>
+    <md-progress-circular ng-show="calculate" md-mode="indeterminate" md-diameter="20px"></md-progress-circular>
+
+    <md-list class="md-3-line">
+      <md-list-item ng-repeat="result in results track by $index">
+        <span>{{result}}</span>
+      </md-list-item>
+    </md-list>
+  </md-content>
+</md-toolbar>

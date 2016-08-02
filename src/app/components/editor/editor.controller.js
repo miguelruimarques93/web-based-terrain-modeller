@@ -8,6 +8,7 @@ import * as image_utils from '../../utils/image_utils';
 import { saveAs } from 'file-saver';
 import { assert } from '../../utils/assert';
 import { convert_base64_to_matrix } from '../../utils/image_utils';
+import ue4Exporter from 'ue4-exporter';
 import BlendingPipeline from '../../common/blending_pipeline';
 import { Enum } from 'enumify';
 
@@ -99,6 +100,40 @@ class EditorController {
 
   }
 
+  set_terrain_file(t_file) {
+    convert_base64_to_matrix(t_file.original_image).then( data_mat => {
+      let data_mat_f32 = new jsfeat.matrix_t(data_mat.cols, data_mat.rows, data_mat.channel | jsfeat.F32_t);
+      data_mat.copy_to(data_mat_f32);
+
+      this.blending_pipeline.base_matrix = data_mat_f32;
+    });
+
+    convert_base64_to_matrix(t_file.result_image).then( data_mat => {
+      this.set_surface(data_mat);
+    });
+
+    this.$scope.random_method = t_file.data.random_method.ordinal;
+    switch (this.$scope.random_method) {
+      case (RandomGenerationMethod.FourierSynthesis.ordinal):
+        this.$scope.fourier_synthesis = deepCopy(t_file.data.random_parameters);
+        this.blending_pipeline.random_matrix_generator = this.generate_random_fourier_surface.bind(this);
+        break;
+      case (RandomGenerationMethod.PerlinNoise.ordinal):
+        this.$scope.perlin_noise = deepCopy(t_file.data.random_parameters);
+        this.blending_pipeline.random_matrix_generator = this.generate_random_perlin_surface.bind(this);
+        break;
+      case (RandomGenerationMethod.SimplexNoise.ordinal):
+        this.$scope.simplex_noise = deepCopy(t_file.data.random_parameters);
+        this.blending_pipeline.random_matrix_generator = this.generate_random_simplex_surface.bind(this);
+        break;
+    }
+
+    this.$scope.blend = deepCopy(t_file.data.blend_parameters); // FIXME: Some values may be erased
+
+    this.blending_pipeline.blend_strength = this.$scope.blend.strength;
+    this.blending_pipeline.mapping_data = this.$scope.blend.mapping_data;
+  }
+
   /**
    * @param {jsfeat.matrix_t} data_mat
    * @param {jsfeat.matrix_t} normal_map
@@ -138,40 +173,8 @@ class EditorController {
   openZip(file) {
     if (file !== null) {
       TerrainFile.load_from_file(file).then(t_file => {
-        convert_base64_to_matrix(t_file.original_image).then( data_mat => {
-          let data_mat_f32 = new jsfeat.matrix_t(data_mat.cols, data_mat.rows, data_mat.channel | jsfeat.F32_t);
-          data_mat.copy_to(data_mat_f32);
-
-          this.blending_pipeline.base_matrix = data_mat_f32;
-        });
-
-        convert_base64_to_matrix(t_file.result_image).then( data_mat => {
-          this.set_surface(data_mat);
-        });
-
-        this.$scope.random_method = t_file.data.random_method.ordinal;
-        switch (this.$scope.random_method) {
-          case (RandomGenerationMethod.FourierSynthesis.ordinal):
-            this.$scope.fourier_synthesis = deepCopy(t_file.data.random_parameters);
-            this.blending_pipeline.random_matrix_generator = this.generate_random_fourier_surface.bind(this);
-            break;
-          case (RandomGenerationMethod.PerlinNoise.ordinal):
-            this.$scope.perlin_noise = deepCopy(t_file.data.random_parameters);
-            this.blending_pipeline.random_matrix_generator = this.generate_random_perlin_surface.bind(this);
-            break;
-          case (RandomGenerationMethod.SimplexNoise.ordinal):
-            this.$scope.simplex_noise = deepCopy(t_file.data.random_parameters);
-            this.blending_pipeline.random_matrix_generator = this.generate_random_simplex_surface.bind(this);
-            break;
-        }
-
-        this.$scope.blend = deepCopy(t_file.data.blend_parameters); // FIXME: Some values may be erased
-
-        this.blending_pipeline.blend_strength = this.$scope.blend.strength;
-        this.blending_pipeline.mapping_data = this.$scope.blend.mapping_data;
-
+        this.set_terrain_file(t_file);
         this.history.push(t_file);
-
         this.state = State.Ready;
       });
     }
@@ -232,6 +235,39 @@ class EditorController {
   save_image(ev, image) {
     image_utils.convert_base64_to_blob(image).then(glob => {
       saveAs(glob, 'result.png')
+    });
+  }
+
+  export_image_ue4(ev, image) {
+    image_utils.convert_base64_to_matrix(image).then(data_mat => {
+      let width = data_mat.cols;
+      let height = data_mat.rows;
+
+      var data = new Uint16Array(width * height);
+      let buffer = data_mat.buffer.u8;
+
+      for (var i = 0; i < width; ++i)
+        for (var j = 0; j < height; ++j)
+          data[i * width + j] = buffer[i * width + j];
+
+      var nDataBytes = data.length * data.BYTES_PER_ELEMENT;
+      var dataPtr = Module._malloc(nDataBytes);
+      var dataHeap = new Uint16Array(Module.HEAPU16.buffer, dataPtr, nDataBytes);
+      dataHeap.set(data);
+      let dataurl = Module.WritePngToMemory(width, height, dataPtr);
+      Module._free(dataPtr);
+
+      let arr = dataurl.split(',');
+      let mime = arr[0].match(/:(.*?);/)[1];
+      let bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+
+      while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+
+      let blob = new Blob([u8arr], {type:mime});
+      saveAs(blob, 'terrain.png');
+
     });
   }
 
@@ -376,37 +412,113 @@ class EditorController {
     return this.state == State.AddingDetail;
   }
 
+  /**
+   *
+   * @param {string} b64_image
+   * @param {number} width_orig
+   * @param {number} height_orig
+   * @returns {string}
+   */
+  make_square(b64_image) { // TODO: FIXME
+    return new Promise( (resolve, reject) => {
+      let image = document.createElement('img');
+
+      image.addEventListener('load', (event) => {
+        let width_orig = event.target.width;
+        let height_orig = event.target.height;
+
+        let canvas = document.createElement('canvas');
+        canvas.width = width_orig;
+        canvas.height = height_orig;
+
+        let context = canvas.getContext('2d');
+
+        context.drawImage(event.target, 0, 0);
+
+        let imgd = context.getImageData(0, 0, width_orig, height_orig);
+        let pix = imgd.data;
+
+        let width = width_orig;
+        let height = height_orig;
+
+        let width_offset = 0;
+        let height_offset = 0;
+
+        if (width_orig > height_orig) {
+          width = height_orig;
+          width_offset = (width_orig - height_orig) / 2;
+        } else if (width_orig < height_orig) {
+          height = width_orig;
+          height_offset = (height_orig - width_orig) / 2;
+        }
+
+        let data_mat = new jsfeat.matrix_t(width, height, jsfeat.U8C1_t);
+        let data = data_mat.buffer.u8;
+
+        for (let r = 0; r < height; ++r) {
+          let rr_orig = (r + height_offset) * width;
+          let rr = r * width;
+          for (let c = 0; c < width; ++c) {
+            let index_orig = (rr_orig + c + width_offset) * 4;
+            let index = (rr + c) * 4;
+
+            for (let ch = 0; ch < 4; ++ch)
+              data[index + ch] = pix[index_orig + ch];
+          }
+        }
+
+        debugger;
+        resolve(image_utils.convert_matrix_to_base64(data_mat));
+      });
+
+      image.src = b64_image;
+    });
+  }
+
   finish_adding_detail() {
     assert(this.can_finish_adding_detail(), "State should be AddingDetail.");
 
     let file = new TerrainFile();
 
-    file.snapshot_image = this.$element.find('canvas')[0].toDataURL();
+    this.make_square(this.$element.find('canvas')[0].toDataURL()).then(img => {
+      file.snapshot_image = this.$element.find('canvas')[0].toDataURL();
+      // file.snapshot_image = img;
 
-    file.original_matrix = this.blending_pipeline.base_matrix;
+      file.original_matrix = this.blending_pipeline.base_matrix;
 
-    if (this.blending_pipeline.has_result_matrix()) {
-      file.result_matrix = this.blending_pipeline.result_matrix;
+      if (this.blending_pipeline.has_result_matrix()) {
+        file.result_matrix = this.blending_pipeline.result_matrix;
 
-      file.data.random_method = RandomGenerationMethod.enumValues[this.$scope.random_method];
+        file.data.random_method = RandomGenerationMethod.enumValues[this.$scope.random_method];
 
-      switch (this.$scope.random_method) {
-        case (RandomGenerationMethod.FourierSynthesis.ordinal):
-          file.data.random_parameters = deepCopy(this.$scope.fourier_synthesis);
-          break;
-        case (RandomGenerationMethod.PerlinNoise.ordinal):
-          file.data.random_parameters = deepCopy(this.$scope.perlin_noise);
-          break;
-        case (RandomGenerationMethod.SimplexNoise.ordinal):
-          file.data.random_parameters = deepCopy(this.$scope.simplex_noise);
-          break;
+        switch (this.$scope.random_method) {
+          case (RandomGenerationMethod.FourierSynthesis.ordinal):
+            file.data.random_parameters = deepCopy(this.$scope.fourier_synthesis);
+            break;
+          case (RandomGenerationMethod.PerlinNoise.ordinal):
+            file.data.random_parameters = deepCopy(this.$scope.perlin_noise);
+            break;
+          case (RandomGenerationMethod.SimplexNoise.ordinal):
+            file.data.random_parameters = deepCopy(this.$scope.simplex_noise);
+            break;
+        }
+
+        file.data.blend_parameters = deepCopy(this.$scope.blend);
       }
 
-      file.data.blend_parameters = deepCopy(this.$scope.blend);
+      this.history.push(file);
+
+      this.state = State.Ready;
+    });
+  }
+
+  cancel_adding_detail() {
+    assert(this.can_finish_adding_detail(), "State should be AddingDetail");
+
+    if (this.history.length > 0) {
+      let file = this.history[this.history.length - 1];
+      this.set_terrain_file(file);
     }
-
-    this.history.push(file);
-
     this.state = State.Ready;
   }
 

@@ -14,6 +14,9 @@ out float normalized;
 
 void main() 
 {  
-    normalized = (texture(u_input, gl_FragCoord.xy / u_transformSize).x - u_minMax.x) / (u_minMax.y - u_minMax.x);
+    normalized = texture(u_input, gl_FragCoord.xy / u_transformSize).x - u_minMax.x;
+	float diff = u_minMax.y - u_minMax.x;
+	if (diff != 0.0)
+		normalized /= diff;
 }
 

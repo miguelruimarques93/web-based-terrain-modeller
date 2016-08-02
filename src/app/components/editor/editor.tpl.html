@@ -15,12 +15,8 @@
               <md-button ng-model="img_file" ngf-select="vm.openFile($file)" ngf-pattern="'image/*'" ngf-accept="'image/*'">Open Image</md-button>
             </md-menu-item>
             <md-menu-item>
-              <md-button ng-model="zip_file" ngf-select="vm.openZip($file)" ngf-pattern="'application/*'"
-                         ngf-accept="'application/zip'">Open Zip
+              <md-button ng-model="zip_file" ngf-select="vm.openZip($file)" ngf-pattern="'application/*'" ngf-accept="'application/zip'">Open Zip
               </md-button>
-            </md-menu-item>
-            <md-menu-item>
-              <md-button ng-click="vm.saveCurrent();" ng-disabled="!vm.canSave()">Save Current Terrain</md-button>
             </md-menu-item>
           </md-menu-content>
         </md-menu>
@@ -222,7 +218,7 @@
 
       <h4>Blend Phase</h4>
       <md-content layout-padding layout="column">
-        <md-input-container>
+        <md-input-container  class="md-input-has-value">
           <label>Mapping</label>
           <spline-editor
               ng-change="vm.spline_changed()"
@@ -243,7 +239,7 @@
               max="500"/>
         </md-input-container>
         <div layout="row">
-          <md-input-container>
+          <md-input-container flex>
             <label>Result min height</label>
             <input
                 ng-model="blend.minimum"
@@ -255,7 +251,7 @@
                 max="{{blend.maximum - 1}}"
             />
           </md-input-container>
-          <md-input-container>
+          <md-input-container flex>
             <label>Result max height</label>
             <input
                 ng-model="blend.maximum"
@@ -274,6 +270,9 @@
         <md-button ng-click="vm.finish_adding_detail()" ng-disabled="!vm.can_finish_adding_detail()">
           <span>Finish</span>
         </md-button>
+        <md-button ng-click="vm.cancel_adding_detail()" ng-disabled="!vm.can_finish_adding_detail()">
+          <span>Cancel</span>
+        </md-button>
       </md-content>
     </form>
   </md-content>
@@ -281,10 +280,24 @@
   <terrain-viewer layout="column" flex terrain="vm.terrain"></terrain-viewer>
 
   <md-sidenav class="md-sidenav-right terrain-file-sidebar" md-is-locked-open="vm.history.length > 0" layout="row">
-    <md-button ng-click="vm.toggle_history_details()" class="sidebar-close">
+    <md-button ng-click="vm.toggle_history_details()" class="sidebar-close" ng-disabled="vm.selected_history_entry == null">
       <md-icon>{{vm.terrain_file_sidebar_open ? 'keyboard_arrow_right' : 'keyboard_arrow_left'}}</md-icon>
     </md-button>
     <form ng-show="vm.selected_history_entry != null && vm.terrain_file_sidebar_open">
+      <md-menu>
+        <md-icon ng-click="$mdOpenMenu()">more_vert</md-icon>
+        <md-menu-content>
+          <md-menu-item>
+            <md-button ng-click="vm.save($event, vm.selected_history_entry)">Save</md-button>
+          </md-menu-item>
+          <md-menu-item>
+            <md-button ng-click="vm.save_image($event, vm.selected_history_entry.result_image)">Save Result</md-button>
+          </md-menu-item>
+          <md-menu-item>
+            <md-button ng-click="vm.export_image_ue4($event, vm.selected_history_entry.result_image)">Export UE4</md-button>
+          </md-menu-item>
+        </md-menu-content>
+      </md-menu>
       <md-content layout-padding layout="column">
         <div layout="column">
           <div layout="column">
@@ -300,9 +313,9 @@
         <md-content>
           <md-input-container>
             <label>Random Method</label>
-            <input type="text" ng-model="ctrl.file.data.random_method.description" disabled/>
+            <input type="text" ng-model="vm.selected_history_entry.data.random_method.description" disabled/>
           </md-input-container>
-          <md-content layout-padding ng-if="!vm.selected_history_entry.is_method_none()">
+          <md-content ng-if="!vm.selected_history_entry.is_method_none()">
             <h4>Parameters:</h4>
             <md-content layout-padding ng-if="vm.selected_history_entry.is_method_fourier()">
               <md-input-container>
@@ -333,6 +346,29 @@
               </md-input-container>
             </md-content>
           </md-content>
+
+          <md-content class="blending-history">
+            <h4>Blending</h4>
+            <md-content layout-padding>
+              <md-input-container class="md-input-has-value">
+                <label>Mapping</label>
+                <spline-editor ng-model="vm.selected_history_entry.data.blend_parameters.mapping_data" disabled></spline-editor>
+              </md-input-container>
+              <md-input-container>
+                <label>Blend Strength</label>
+                <input type="text" ng-model="vm.selected_history_entry.data.blend_parameters.strength" disabled/>
+              </md-input-container>
+              <md-input-container>
+                <label>Result Minimum</label>
+                <input type="text" ng-model="vm.selected_history_entry.data.blend_parameters.minimum" disabled/>
+              </md-input-container>
+              <md-input-container>
+                <label>Result Maximum</label>
+                <input type="text" ng-model="vm.selected_history_entry.data.blend_parameters.maximum" disabled/>
+              </md-input-container>
+            </md-content>
+
+          </md-content>
         </md-content>
 
     </form>
@@ -342,21 +378,6 @@
     <md-list class="image-list md-3-line">
       <md-list-item ng-repeat="terrain_file in vm.history track by $index">
         <img src="{{terrain_file.snapshot_image}}" ng-class="{active: $index==vm.selected_history_entry_index}" ng-click="vm.select_history_entry($index)"/>
-
-        <!--
-        <md-menu>
-          <md-icon ng-click="$mdOpenMenu()">more_vert</md-icon>
-          <md-menu-content>
-            <md-menu-item>
-              <md-button ng-click="vm.save($event, terrain_file)">Save</md-button>
-            </md-menu-item>
-            <md-menu-item>
-              <md-button ng-click="vm.save_image($event, terrain_file.result_image)">Save Result</md-button>
-            </md-menu-item>
-          </md-menu-content>
-        </md-menu>
-        -->
-
       </md-list-item>
     </md-list>
   </md-sidenav>

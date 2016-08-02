@@ -1,5 +1,5 @@
 import jsfeat from 'jsfeat';
-import { require } from 'assert';
+import { require } from './assert';
 
 function element_wise_operation(op) {
   return (A, B, C) => {

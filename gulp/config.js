@@ -52,8 +52,10 @@ exports.doc = {
       destination: exports.paths.root + "/docs"
     }
   },
+  static_files: [
+    'README.md'
+  ],
   src : [
-    'README.md',
     exports.paths.app + '/app/**/*.js',
     '!' + exports.paths.app + '/app/vendor/**/*.*',
   ]

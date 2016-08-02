@@ -55,6 +55,7 @@
       "angular-messages": "github:angular/bower-angular-messages@^1.5.5",
       "angular-mocks": "github:angular/bower-angular-mocks@^1.5.3",
       "angular-ui-router": "github:angular-ui/ui-router@^0.2.18",
+      "benchmark": "npm:benchmark@^2.1.0",
       "d3": "npm:d3@^3.5.17",
       "enumify": "npm:enumify@^1.0.4",
       "es6-error": "npm:es6-error@^3.0.0",
@@ -66,6 +67,7 @@
       "jszip": "npm:jszip@^3.0.0",
       "leaflet": "github:Leaflet/Leaflet@^0.7.7",
       "material-design-icons-iconfont": "npm:material-design-icons-iconfont@^2.0.5",
+      "ng-croppie": "npm:ng-croppie@^1.0.0",
       "ng-file-upload": "npm:ng-file-upload@^12.0.4",
       "noisejs": "local:noisejs@0.0.1",
       "scss": "github:mobilexag/plugin-sass@^0.4.3",
@@ -73,6 +75,7 @@
       "three": "github:mrdoob/three.js@r77",
       "three-orbit-controls": "github:deltaaskii/three-orbit-controls@master",
       "three-trackball-controls": "local:three-trackball-controls@0.77.0",
+      "ue4-exporter": "local:ue4-exporter@0.0.1",
       "underscore": "npm:underscore@^1.8.3"
     },
     "devDependencies": {
@@ -192,6 +195,15 @@
           }
         }
       },
+      "local:ue4-exporter@0.0.1": {
+        "format": "global",
+        "meta": {
+          "ue4-terrain-exporter.js": {
+            "exports": "Module",
+            "format": "global"
+          }
+        }
+      },
       "npm:angular@1.5.6": {
         "format": "global",
         "jspmNodeConversion": false,
@@ -246,6 +258,16 @@
           }
         }
       },
+      "npm:benchmark@2.1.0": {
+        "meta": {
+          "benchmark.js": {
+            "deps": [
+              "lodash"
+            ],
+            "format": "global"
+          }
+        }
+      },
       "npm:d3@3.5.17": {
         "meta": {
           "d3.js": {
@@ -278,6 +300,12 @@
       },
       "npm:leaflet@0.7.7": {
         "jspmNodeConversion": false
+      },
+      "npm:lodash@4.13.1": {
+        "map": {
+          "buffer": "@empty",
+          "process": "@empty"
+        }
       },
       "npm:ms@0.7.1": {
         "jspmNodeConversion": false,

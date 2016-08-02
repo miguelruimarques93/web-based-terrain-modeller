@@ -568,10 +568,12 @@ SystemJS.config({
     "local:*.json"
   ],
   map: {
+    "benchmark": "npm:benchmark@2.1.0",
     "enumify": "npm:enumify@1.0.4",
     "domain": "github:jspm/nodelibs-domain@0.2.0-alpha",
     "file-saver": "npm:file-saver@1.3.2",
     "jszip": "npm:jszip@3.0.0",
+    "ng-croppie": "npm:ng-croppie@1.0.0",
     "noisejs": "local:noisejs@0.0.1",
     "three-trackball-controls": "local:three-trackball-controls@0.77.0",
     "angular": "github:angular/bower-angular@1.5.7",
@@ -606,6 +608,7 @@ SystemJS.config({
     "text": "github:systemjs/plugin-text@0.0.8",
     "three": "github:mrdoob/three.js@r77",
     "three-orbit-controls": "github:deltaaskii/three-orbit-controls@master",
+    "ue4-exporter": "local:ue4-exporter@0.0.1",
     "underscore": "npm:underscore@1.8.3",
     "util": "github:jspm/nodelibs-util@0.2.0-alpha",
     "vm": "github:jspm/nodelibs-vm@0.2.0-alpha"
@@ -1008,6 +1011,12 @@ SystemJS.config({
     "github:jspm/nodelibs-domain@0.2.0-alpha": {
       "map": {
         "domain-browserify": "npm:domain-browser@1.1.7"
+      }
+    },
+    "npm:benchmark@2.1.0": {
+      "map": {
+        "lodash": "npm:lodash@4.13.1",
+        "platform": "npm:platform@1.3.1"
       }
     }
   }

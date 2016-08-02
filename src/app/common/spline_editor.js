@@ -8,7 +8,7 @@ import { deepCopy } from 'web_based_terrain_modeller/utils/utils';
 class SplineEditorController
 {
   constructor() {
-    this.ngModel = $element.controller('ngModel');
+    this.ngModel = this.$element.controller('ngModel');
 
     this.bounds_x = [50.0, 250.0];
     this.bounds_y = [10.0, 140.0];
@@ -36,29 +36,31 @@ class SplineEditorController
       .call(this.redraw.bind(this))
     ;
 
-    d3.select(window)
-      .on('mousemove', this.mousemove.bind(this))
-      .on('mouseup', this.mouseup.bind(this));
+    if (!this.is_disabled()) {
+      d3.select(window)
+        .on('mousemove', this.mousemove.bind(this))
+        .on('mouseup', this.mouseup.bind(this));
+    }
 
     this.update_scope();
   }
 
-  calculate_internal_points() {
-    if (this.ngModel.$viewValue.points) {
-      this.internal_points = deepCopy(this.ngModel.$viewValue.points);
+  is_disabled() {
+    return this.$element.attr('disabled');
+  }
 
-      for (let i = 0; i < this.internal_points.length; ++i) {
-        this.internal_points[i][0] = this.internal_points[i][0] * (this.bounds_x[1] - this.bounds_x[0]) + this.bounds_x[0];
-        this.internal_points[i][1] = this.internal_points[i][1] * (this.bounds_y[1] - this.bounds_y[0])/* + this.bounds_y[0]*/;
-        this.internal_points[i][1] = this.bounds_y[1] - this.internal_points[i][1];
-      }
-    } else {
-      this.internal_points = [
-        [50.0, 140.0],
-        [116.7, 96.6],
-        [183.3, 53.3],
-        [250.0, 10.0]
-      ];
+  calculate_internal_points() {
+    let points = [[0.0, 0.0], [0.25, 0.25], [0.75, 0.75], [1.0, 1.0]];
+
+    if (this.ngModel.$viewValue && this.ngModel.$viewValue.points)
+      points = this.ngModel.$viewValue.points;
+
+    this.internal_points = deepCopy(points);
+
+    for (let i = 0; i < this.internal_points.length; ++i) {
+      this.internal_points[i][0] = this.internal_points[i][0] * (this.bounds_x[1] - this.bounds_x[0]) + this.bounds_x[0];
+      this.internal_points[i][1] = this.internal_points[i][1] * (this.bounds_y[1] - this.bounds_y[0])/* + this.bounds_y[0]*/;
+      this.internal_points[i][1] = this.bounds_y[1] - this.internal_points[i][1];
     }
   }
 
@@ -71,11 +73,13 @@ class SplineEditorController
 
     circle.enter().append('circle')
       .attr('r', 1e-6)
-      .on('mousedown', this.mousedown.bind(this))
       .transition()
       .duration(750)
       .ease('elastic')
       .attr('r', 6.5);
+
+    if (!this.is_disabled())
+      circle.on('mousedown', this.mousedown.bind(this));
 
     circle
       .classed('selected', d => d == this.selected)
@@ -91,33 +95,39 @@ class SplineEditorController
   }
 
   mousedown(d) {
-    this.selected = this.dragged = d;
-    this.selected_index = this.internal_points.indexOf(this.selected);
+    if (!this.is_disabled()) {
+      this.selected = this.dragged = d;
+      this.selected_index = this.internal_points.indexOf(this.selected);
 
-    this.redraw();
+      this.redraw();
+    }
   }
 
   mousemove() {
-    if (!this.dragged) return;
+    if (!this.is_disabled()) {
+      if (!this.dragged) return;
 
-    let m = d3.mouse(this.svg.node());
+      let m = d3.mouse(this.svg.node());
 
-    if (this.selected_index != 0 && this.selected_index != this.internal_points.length - 1) {
-      this.dragged[0] = Math.max(
-        this.internal_points[this.selected_index - 1][0] + 20.0,
-        Math.min(this.internal_points[this.selected_index + 1][0] - 20.0, m[0]));
+      if (this.selected_index != 0 && this.selected_index != this.internal_points.length - 1) {
+        this.dragged[0] = Math.max(
+          this.internal_points[this.selected_index - 1][0] + 20.0,
+          Math.min(this.internal_points[this.selected_index + 1][0] - 20.0, m[0]));
+      }
+
+      this.dragged[1] = Math.max(this.bounds_y[0], Math.min(this.bounds_y[1], m[1]));
+
+      this.update_scope();
+      this.redraw();
     }
-
-    this.dragged[1] = Math.max(this.bounds_y[0], Math.min(this.bounds_y[1], m[1]));
-
-    this.update_scope();
-    this.redraw();
   }
 
   mouseup() {
-    if (!this.dragged) return;
-    this.mousemove();
-    this.dragged = null;
+    if (!this.is_disabled()) {
+      if (!this.dragged) return;
+      this.mousemove();
+      this.dragged = null;
+    }
   }
 
   slope(p0, p1) {
@@ -183,6 +193,8 @@ class SplineEditorController
   }
 
   update_scope() {
+    if (this.is_disabled()) return;
+
     let points = this.update_points();
     let tangents = this.update_tangents(points);
     this.ngModel.$setViewValue({points: points, tangents: tangents});

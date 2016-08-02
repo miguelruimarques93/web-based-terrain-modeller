@@ -44,11 +44,11 @@ class TerrainViewerController
 
     this.scene.add(this.camera);
 
-    this.camera.position.x = 50;
-    this.camera.position.y = 50;
-    this.camera.position.z = 50;
+    this.camera.position.x = 300;
+    this.camera.position.y = 500;
+    this.camera.position.z = 300;
 
-    this.camera.lookAt(new THREE.Vector3(0, 0, 0));
+    this.camera.lookAt(new THREE.Vector3(0, 128, 0));
 
     this.surface_material = new THREE.MeshPhongMaterial({
       color: 0x2194ce,

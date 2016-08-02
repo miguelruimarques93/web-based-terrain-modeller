@@ -1,0 +1,9 @@
+{
+  "main": "ue4-terrain-exporter",
+  "format": "global",
+  "shim": {
+    "ue4-terrain-exporter": {
+      "exports": "Module"
+    }
+  }
+}

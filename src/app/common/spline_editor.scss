@@ -1,24 +1,32 @@
 spline-editor {
-  rect {
-    fill: none;
-    pointer-events: all;
+  display: block;
+
+  svg {
+    width: 290px;
+    height: 150px;
+
+    rect {
+      fill: none;
+      pointer-events: all;
+    }
+
+    circle,
+    .line {
+      fill: none;
+      stroke: steelblue;
+      stroke-width: 1.5px;
+    }
+
+    circle {
+      fill: #fff;
+      fill-opacity: .2;
+      cursor: move;
+    }
+
+    .selected {
+      fill: #ff7f0e;
+      stroke: #ff7f0e;
+    }
   }
 
-  circle,
-  .line {
-    fill: none;
-    stroke: steelblue;
-    stroke-width: 1.5px;
-  }
-
-  circle {
-    fill: #fff;
-    fill-opacity: .2;
-    cursor: move;
-  }
-
-  .selected {
-    fill: #ff7f0e;
-    stroke: #ff7f0e;
-  }
 }

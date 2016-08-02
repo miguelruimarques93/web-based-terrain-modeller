@@ -31,19 +31,38 @@ editor {
 
   #details_panel {
     transition: 0.2s ease-in all;
-    max-width: 25rem;
+    width: 23rem;
 
     &.ng-hide {
-      max-width: 0;
+      width: 0;
     }
   }
 }
 
 .terrain-file-sidebar {
+  overflow: hidden;
+
+  img {
+    width: 300px;
+    height: 300px;
+  }
+
   .md-input[disabled] {
     border-bottom-color: transparent;
     background-image: none;
     color: black;
+  }
+
+  md-input-container {
+    margin-bottom: 0;
+  }
+
+  .md-errors-spacer {
+    display: none;
+  }
+
+  h4 {
+    margin-bottom: 0;
   }
 
   .md-button.sidebar-close {
@@ -53,11 +72,18 @@ editor {
   }
 
   form {
+    overflow: auto;
+
     transition: 0.2s ease-in all;
-    max-width: 17.5rem;
+    width: 22rem;
 
     &.ng-hide {
-      max-width: 0;
+      width: 0;
     }
   }
+}
+
+.blending-history > * {
+  overflow: hidden;
+  max-width: 300px;
 }

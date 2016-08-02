@@ -8,7 +8,7 @@
 #   define INPUT_TYPE_IM float
 #   define OUTPUT_TYPE vec4
 
-#elif define(U8)
+#elif defined(U8)
 
 #   define INPUT_TYPE usampler2D
 #   define INPUT_TYPE_IM uint
