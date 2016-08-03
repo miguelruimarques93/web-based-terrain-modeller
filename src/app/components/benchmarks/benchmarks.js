@@ -1,7 +1,7 @@
 import angular from 'angular';
 import benchmarksComponent from './benchmarks.component';
 
-let benchmarksModule = angular.module('app.benchmarks', [])
+let benchmarksModule = angular.module('app.components.benchmarks', [])
 
   .config($stateProvider => {
     'ngInject';
