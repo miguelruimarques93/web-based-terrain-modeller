@@ -42,19 +42,6 @@
       <h4>Generation Phase</h4>
       <md-content layout-padding layout="column">
         <md-input-container>
-          <label>Surface Size</label>
-          <md-select ng-model="surface_size">
-            <md-option ng-value="16">16</md-option>
-            <md-option ng-value="32">32</md-option>
-            <md-option ng-value="64">64</md-option>
-            <md-option ng-value="128">128</md-option>
-            <md-option ng-value="256">256</md-option>
-            <md-option ng-value="512">512</md-option>
-            <md-option ng-value="1024">1024</md-option>
-            <md-option ng-value="2048">2048</md-option>
-          </md-select>
-        </md-input-container>
-        <md-input-container>
           <label>Random Method</label>
           <md-select ng-model="random_method" ng-change="vm.random_method_changed()">
             <md-option ng-repeat="method in random_methods" ng-value="method.ordinal">
@@ -166,7 +153,7 @@
                 type="number"
                 step="1"
                 min="1"
-                max="20"
+                max="10"
                 required/>
           </md-input-container>
           <md-input-container class="md-block">
@@ -209,11 +196,7 @@
         </md-content>
 
       </md-content>
-      <md-content>
-        <md-button ng-click="vm.generate_surface()" ng-disabled="settingsForm.$invalid || !vm.can_generate()">
-          <span>Generate</span>
-        </md-button>
-      </md-content>
+
       <md-divider></md-divider>
 
       <h4>Blend Phase</h4>

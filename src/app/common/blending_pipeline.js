@@ -80,9 +80,9 @@ class BlendingPipeline {
         this._normal_map_strength = 0.01;
     }
 
-    has_base_matrix() { return this._base_matrix !== undefined; } // TODO FIXME
+    has_base_matrix() { return this._base_matrix !== undefined; }
 
-    has_result_matrix() { return this._result_matrix !== undefined; } // TODO FIXME
+    has_result_matrix() { return this._result_matrix !== undefined; }
 
     /**
      * @returns {jsfeat.matrix_t}

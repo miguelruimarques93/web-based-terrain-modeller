@@ -40,6 +40,6 @@ float generate(float x, float y)
 
 void main() 
 {          
-    vec2 xy = gl_FragCoord.xy / u_frequency/* / u_transformSize*/;
+    vec2 xy = gl_FragCoord.xy / u_frequency;
     random_value = generate(xy.x, xy.y);
 }
