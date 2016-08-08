@@ -1,0 +1,15 @@
+benchmarks {
+  table {
+    width: 100%;
+    margin-bottom: 1rem;
+    table-layout: fixed;
+  }
+  table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+  }
+
+  tr {
+    height: 2rem;
+  }
+}

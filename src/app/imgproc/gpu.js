@@ -404,8 +404,8 @@ class gpu
     
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, minMax.framebuffer);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.LINES, 6, gl.UNSIGNED_SHORT, 0); // FIXME: There's no need to render the entire square. The first column should be enough.
-    
+    gl.drawElements(gl.LINES, 2, gl.UNSIGNED_SHORT, 2); // FIXME: There's no need to render the entire square. The first column should be enough.
+
     gl.viewport(0, 0, 1, 1);
     
     let minMax2 = this.create_gpu_matrix();
@@ -423,7 +423,9 @@ class gpu
     
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, minMax2.framebuffer);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.LINES, 6, gl.UNSIGNED_SHORT, 0); // FIXME: There's no need to render the entire square. The first vertex should be enough.
+    gl.drawElements(gl.LINES, 2, gl.UNSIGNED_SHORT, 2); // FIXME: There's no need to render the entire square. The first vertex should be enough.
+    // gl.drawElements(gl.POINTS, 1, gl.UNSIGNED_SHORT, 12); // FIXME: There's no need to render the entire square. The first vertex should be enough.
+
         
     let result = minMax2.download();
     

@@ -25,9 +25,20 @@ function element_wise_operation(op) {
   };
 }
 
-let add = element_wise_operation((x, y) => Math.max(0, Math.min(x + y, 255)));
-let subtract = element_wise_operation((x, y) => Math.abs(x - y));
+let add_clamp = element_wise_operation((x, y) => Math.max(0, Math.min(x + y, 255)));
+let abs_subtract = element_wise_operation((x, y) => Math.abs(x - y));
+let add = element_wise_operation((x, y) => x + y);
+let subtract = element_wise_operation((x, y) => x - y);
 let multiply = element_wise_operation((x, y) => x * y);
+
+function minMax(src) {
+  let src_buffer = src.data;
+
+  let max = _.max(src_buffer);
+  let min = _.min(src_buffer);
+
+  return { min: min, max: max };
+}
 
 /**
  * @param src {jsfeat.matrix_t}
@@ -40,8 +51,10 @@ function normalize(src, dest) {
 
   let src_buffer = src.data;
 
-  let max = _.max(src_buffer);
-  let min = _.min(src_buffer);
+  let minmax = minMax(src);
+
+  let max = minmax.max;
+  let min = minmax.min;
 
   let dest_buffer = dest.buffer.f32;
 
@@ -51,4 +64,4 @@ function normalize(src, dest) {
   }
 }
 
-export { add, subtract, multiply, normalize };
+export { add, subtract, multiply, normalize, minMax };

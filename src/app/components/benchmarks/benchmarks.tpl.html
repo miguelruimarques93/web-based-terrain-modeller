@@ -9,19 +9,141 @@
   </div>
 
   <md-content>
-    <md-button ng-click="vm.runSuite(16)" ng-disabled="calculate">Run 16</md-button>
-    <md-button ng-click="vm.runSuite(32)" ng-disabled="calculate">Run 32</md-button>
-    <md-button ng-click="vm.runSuite(64)" ng-disabled="calculate">Run 64</md-button>
-    <md-button ng-click="vm.runSuite(128)" ng-disabled="calculate">Run 128</md-button>
-    <md-button ng-click="vm.runSuite(256)" ng-disabled="calculate">Run 256</md-button>
-    <md-button ng-click="vm.runSuite(512)" ng-disabled="calculate">Run 512</md-button>
-    <md-button ng-click="vm.runSuite(1024)" ng-disabled="calculate">Run 1024</md-button>
-    <md-progress-circular ng-show="calculate" md-mode="indeterminate" md-diameter="20px"></md-progress-circular>
+    <form name="runningForm">
+      <md-input-container>
+        <label>Repeat Times</label>
+        <input
+            ng-model="repeat_times"
+            type="number"
+            step="1"
+            min="1"
+            ng-disabled="calculate"
+            required/>
+      </md-input-container>
 
-    <md-list class="md-3-line">
-      <md-list-item ng-repeat="result in results track by $index">
-        <span>{{result}}</span>
-      </md-list-item>
-    </md-list>
+      <md-button ng-click="vm.runSuite(16)" ng-disabled="runningForm.$invalid || calculate">Run 16</md-button>
+      <md-button ng-click="vm.runSuite(32)" ng-disabled="runningForm.$invalid || calculate">Run 32</md-button>
+      <md-button ng-click="vm.runSuite(64)" ng-disabled="runningForm.$invalid || calculate">Run 64</md-button>
+      <md-button ng-click="vm.runSuite(128)" ng-disabled="runningForm.$invalid || calculate">Run 128</md-button>
+      <md-button ng-click="vm.runSuite(256)" ng-disabled="runningForm.$invalid || calculate">Run 256</md-button>
+      <md-button ng-click="vm.runSuite(512)" ng-disabled="runningForm.$invalid || calculate">Run 512</md-button>
+      <md-button ng-click="vm.runSuite(1024)" ng-disabled="runningForm.$invalid || calculate">Run 1024</md-button>
+      <md-button ng-click="vm.runAll()" ng-disabled="runningForm.$invalid || calculate">Run All</md-button>
+
+      <md-progress-circular ng-show="calculate" md-mode="indeterminate" md-diameter="20px"></md-progress-circular>
+    </form>
+
+    <!--<md-content layout="colums">-->
+    <md-tabs md-dynamic-height md-border-bottom flex>
+      <md-tab label="Average">
+        <md-list class="md-3-line" flex>
+          <md-list-item ng-repeat="(device, res_device) in struct_results" layout="column">
+            <table>
+              <thead>
+              <th>{{device}}</th>
+              <th ng-repeat="size in sizes">{{size}}</th>
+              </thead>
+              <tr ng-repeat="(test, res_device_test) in res_device">
+                <td><strong>{{test}}</strong></td>
+                <td ng-repeat="(_, res) in res_device_test">{{vm.asString(res[activeMeasure].average)}}</td>
+              </tr>
+            </table>
+          </md-list-item>
+
+          <md-list-item layout="column">
+            <table>
+              <thead>
+              <th>{{devices[0]}} / {{devices[1]}}</th>
+              <th ng-repeat="size in sizes">{{size}}</th>
+              </thead>
+              <tr ng-repeat="test in tests">
+                <td><strong>{{test}}</strong></td>
+                <td ng-repeat="size in sizes">{{
+                  vm.asString(struct_results[devices[0]][test][size][activeMeasure].average / struct_results[devices[1]][test][size][activeMeasure].average)
+                  }}
+                </td>
+              </tr>
+            </table>
+          </md-list-item>
+        </md-list>
+      </md-tab>
+
+      <md-tab label="Maximum">
+        <md-list class="md-3-line" flex>
+          <md-list-item ng-repeat="(device, res_device) in struct_results" layout="column">
+            <table>
+              <thead>
+              <th>{{device}}</th>
+              <th ng-repeat="size in sizes">{{size}}</th>
+              </thead>
+              <tr ng-repeat="(test, res_device_test) in res_device">
+                <td><strong>{{test}}</strong></td>
+                <td ng-repeat="(_, res) in res_device_test">{{vm.asString(res[activeMeasure].maximum)}}</td>
+              </tr>
+            </table>
+          </md-list-item>
+
+          <md-list-item layout="column">
+            <table>
+              <thead>
+              <th>{{devices[0]}} / {{devices[1]}}</th>
+              <th ng-repeat="size in sizes">{{size}}</th>
+              </thead>
+              <tr ng-repeat="test in tests">
+                <td><strong>{{test}}</strong></td>
+                <td ng-repeat="size in sizes">{{
+                  vm.asString(struct_results[devices[0]][test][size][activeMeasure].maximum / struct_results[devices[1]][test][size][activeMeasure].maximum)
+                  }}
+                </td>
+              </tr>
+            </table>
+          </md-list-item>
+        </md-list>
+      </md-tab>
+
+      <md-tab label="Minimum">
+        <md-list class="md-3-line" flex>
+          <md-list-item ng-repeat="(device, res_device) in struct_results" layout="column">
+            <table>
+              <thead>
+              <th>{{device}}</th>
+              <th ng-repeat="size in sizes">{{size}}</th>
+              </thead>
+              <tr ng-repeat="(test, res_device_test) in res_device">
+                <td><strong>{{test}}</strong></td>
+                <td ng-repeat="(_, res) in res_device_test">{{vm.asString(res[activeMeasure].minimum)}}</td>
+              </tr>
+            </table>
+          </md-list-item>
+
+          <md-list-item layout="column">
+            <table>
+              <thead>
+              <th>{{devices[0]}} / {{devices[1]}}</th>
+              <th ng-repeat="size in sizes">{{size}}</th>
+              </thead>
+              <tr ng-repeat="test in tests">
+                <td><strong>{{test}}</strong></td>
+                <td ng-repeat="size in sizes">{{
+                  vm.asString(struct_results[devices[0]][test][size][activeMeasure].minimum / struct_results[devices[1]][test][size][activeMeasure].minimum)
+                  }}
+                </td>
+              </tr>
+            </table>
+          </md-list-item>
+        </md-list>
+      </md-tab>
+      <md-tab label="Log">
+        <md-list flex>
+          <md-list-item ng-repeat="log_entry in results track by $index"><span>{{log_entry}}</span></md-list-item>
+        </md-list>
+      </md-tab>
+    </md-tabs>
+    <md-select ng-model="activeMeasure">
+      <md-option ng-repeat="measure in measures" ng-value="measure">
+        {{measure}}
+      </md-option>
+    </md-select>
   </md-content>
+  <!--</md-content>-->
 </md-toolbar>
